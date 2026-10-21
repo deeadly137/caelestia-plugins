@@ -584,7 +584,7 @@ void Plugins::installPlugin(const QString& repo, const QString& path, const QStr
     targetName.replace(QLatin1Char('/'), QLatin1Char('-'));
     targetName.remove(QRegularExpression(QStringLiteral("[^A-Za-z0-9._-]")));
 
-    if (targetName.isEmpty()) {
+    if (targetName.isEmpty() || targetName == QLatin1String(".") || targetName == QLatin1String("..")) {
         m_installError = tr("Could not derive a plugin directory name");
         emit installErrorChanged();
         emit installFinished(pluginId, false, m_installError);
