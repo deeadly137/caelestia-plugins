@@ -17,12 +17,13 @@ class EntryPointType : public QObject {
 
 public:
     enum Type {
-        Custom,       // Custom unparented component
-        BarEntry,     // Entry in the bar
-        BarPopout,    // Popout attached to a bar entry
-        StatusIcon,   // Status icon in the bar
-        QuickToggle,  // Quick toggle in utilities drawer
-        DashboardTab, // New dashboard tab
+        Custom,        // Custom unparented component
+        BarEntry,      // Entry in the bar
+        BarPopout,     // Popout attached to a bar entry
+        StatusIcon,    // Status icon in the bar
+        QuickToggle,   // Quick toggle in utilities drawer
+        DashboardTab,  // New dashboard tab
+        DesktopWidget, // Widget on the desktop, above the wallpaper and below normal windows
     };
     Q_ENUM(Type)
 

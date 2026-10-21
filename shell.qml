@@ -10,6 +10,7 @@ import Caelestia.Config
 import qs.services
 import qs.modules.areapicker
 import qs.modules.background
+import qs.modules.desktop
 import qs.modules.drawers
 import qs.modules.lock
 import qs.daemons
@@ -42,6 +43,7 @@ ShellRoot {
 
     // Modules
     Background {}
+    DesktopWidgets {}
     Drawers {}
     AreaPicker {}
     Lock {
