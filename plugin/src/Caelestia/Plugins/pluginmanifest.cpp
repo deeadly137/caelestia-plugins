@@ -1,11 +1,13 @@
 #include "pluginmanifest.hpp"
 
+#include <qcryptographichash.h>
 #include <qfile.h>
 #include <qjsonarray.h>
 #include <qjsondocument.h>
 #include <qjsonobject.h>
 #include <qqmlcomponent.h>
 #include <qqmlengine.h>
+#include <qtimer.h>
 #include <qurl.h>
 #include <qversionnumber.h>
 
@@ -20,6 +22,13 @@
 namespace caelestia::plugins {
 
 namespace {
+
+QByteArray fileHash(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    return QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha1);
+}
 
 QVersionNumber parseVersion(QString str) {
     str = str.trimmed();
@@ -302,8 +311,11 @@ void PluginManifest::setGeneration(int generation) {
     m_generation = generation;
 
     // Before the notify, since loaders inject settings while creating their new object and would
-    // otherwise pick up the one built from the previous generation's Settings.qml.
+    // otherwise pick up the one built from the previous generation's Settings.qml. Build the new
+    // settings object eagerly so a loader can never be handed a null pointer between the rebuild
+    // and the first access.
     rebuildSettings();
+    (void)settings();
 
     emit settingsSourceChanged();
     emit settingsUiSourceChanged();
@@ -314,9 +326,21 @@ void PluginManifest::rebuildSettings() {
     if (!m_settings)
         return;
 
+    // Most reloads only touch an entry point's QML. Keeping the settings object in that case
+    // avoids rebuilding it (and temporarily invalidating every binding that reads it).
+    const auto hash = settingsHash();
+    if (!hash.isEmpty() && hash == m_settingsHash)
+        return;
+
     m_storedSettings = m_settings->toMap();
-    m_settings->deleteLater();
+
+    // Detach and retire the old object instead of deleting it now. A loader's previous component
+    // is destroyed with deleteLater(), so deleting the settings it reads first would make those
+    // bindings briefly observe null while the old component is still alive.
+    auto* const old = m_settings;
     m_settings = nullptr;
+    old->setParent(nullptr);
+    QTimer::singleShot(5000, old, &QObject::deleteLater);
 
     emit settingsChanged();
 }
@@ -352,12 +376,19 @@ SettingsObject* PluginManifest::settings() {
 
     // Load stored settings
     m_settings->load(m_storedSettings);
+    m_settingsHash = settingsHash();
     connect(m_settings, &SettingsObject::changed, this, [this] {
         m_settingsDirty = true;
         emit settingsValuesChanged();
     });
 
     return m_settings;
+}
+
+QByteArray PluginManifest::settingsHash() const {
+    if (m_settingsSource.isEmpty())
+        return {};
+    return fileHash(QUrl(settingsSource()).toLocalFile());
 }
 
 void PluginManifest::loadSettings(const QVariantMap& settings) {

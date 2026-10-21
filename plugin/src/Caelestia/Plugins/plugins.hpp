@@ -15,6 +15,8 @@
 #include "pluginmanifest.hpp"
 #include "pluginmodule.hpp"
 
+class QProcess;
+
 namespace caelestia::plugins {
 
 class PluginUrlInterceptor;
@@ -34,6 +36,13 @@ class Plugins : public QObject, public QQmlParserStatus {
     Q_PROPERTY(QVariantList loadedPlugins READ loadedPlugins NOTIFY loadedPluginsChanged)
     Q_PROPERTY(QVariantList conflictingPlugins READ conflictingPlugins NOTIFY conflictingPluginsChanged)
     Q_PROPERTY(QStringList enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
+
+    // Plugin installation/removal. Installs go into the managed data directory and are
+    // asynchronous; removal is synchronous and only applies to plugins in a managed directory.
+    Q_PROPERTY(bool installing READ installing NOTIFY installingChanged)
+    Q_PROPERTY(QString installingPlugin READ installingPlugin NOTIFY installingPluginChanged)
+    Q_PROPERTY(QString installError READ installError NOTIFY installErrorChanged)
+    Q_PROPERTY(QString removeError READ removeError NOTIFY removeErrorChanged)
 
     // Bumped whenever the flattened entry point set could have changed: a plugin appearing or
     // disappearing, its validity or enabled state flipping, or its manifest declaring different
@@ -69,11 +78,27 @@ public:
 
     [[nodiscard]] int entryPointsRevision() const;
 
+    [[nodiscard]] bool installing() const;
+    [[nodiscard]] QString installingPlugin() const;
+    [[nodiscard]] QString installError() const;
+    [[nodiscard]] QString removeError() const;
+
     // Flattened entry points of the given type across all enabled + valid plugins.
     Q_INVOKABLE QList<EntryPoint> __entryPoints(caelestia::plugins::EntryPointType::Type type) const;
 
     Q_INVOKABLE void setPluginEnabled(const QString& pluginId, bool enabled);
     Q_INVOKABLE void reload();
+
+    // Clones `repo` into the managed plugin data directory. `path` selects a subdirectory for
+    // repositories that contain more than one plugin. `pluginId` is used for the target directory
+    // name and progress reporting.
+    Q_INVOKABLE void installPlugin(const QString& repo, const QString& path = {}, const QString& pluginId = {});
+
+    // Deletes a plugin's directory, but only when it lives in one of the shell-managed plugin
+    // roots. Workspace checkouts added through CAELESTIA_PLUGIN_PATH are never removed.
+    Q_INVOKABLE bool removePlugin(const QString& pluginId);
+
+    Q_INVOKABLE bool isManaged(const QString& pluginId) const;
 
 signals:
     void pluginsChanged();
@@ -81,6 +106,13 @@ signals:
     void conflictingPluginsChanged();
     void enabledChanged();
     void entryPointsRevisionChanged();
+    void installingChanged();
+    void installingPluginChanged();
+    void installErrorChanged();
+    void removeErrorChanged();
+
+    void installFinished(const QString& pluginId, bool success, const QString& message);
+    void pluginRemoved(const QString& pluginId, bool success, const QString& message);
 
     // Emitted after a discovery/reload pass finishes populating the plugin list.
     void loaded();
@@ -102,6 +134,10 @@ private:
 
     void loadConfig();
     void saveConfig();
+
+    [[nodiscard]] PluginManifest* manifestForId(const QString& pluginId) const;
+    [[nodiscard]] bool isManagedDir(const QString& dir) const;
+    void finishInstall(bool success, const QString& message);
 
     // `force` reloads every plugin even if nothing about it changed, which is what an explicit
     // reload() asks for. Watch driven rescans leave it false so an unrelated edit costs nothing.
@@ -147,6 +183,15 @@ private:
     // The id cannot be used: it changes when the author edits name/author in the manifest.
     QHash<QString, PluginRecord> m_records;
     int m_entryPointsRevision = 0;
+
+    QProcess* m_installProcess = nullptr;
+    bool m_installing = false;
+    QString m_installingPlugin;
+    QString m_installError;
+    QString m_removeError;
+    QString m_installTemp;
+    QString m_installTarget;
+    QString m_installSubpath;
 
     // Shared by every plugin. All it has to do is keep climbing, since all it has to produce is a
     // URL the engine has not compiled before, and a shared counter is the one thing that cannot

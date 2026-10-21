@@ -12,6 +12,7 @@ constexpr std::pair<EntryPointType::Type, QLatin1String> kTypeNames[] = {
     { EntryPointType::QuickToggle, QLatin1String("quick-toggle") },
     { EntryPointType::DashboardTab, QLatin1String("dashboard-tab") },
     { EntryPointType::DesktopWidget, QLatin1String("desktop-widget") },
+    { EntryPointType::PageExtension, QLatin1String("page-extension") },
 };
 
 } // namespace

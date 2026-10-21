@@ -1,5 +1,6 @@
 #pragma once
 
+#include <qbytearray.h>
 #include <qlist.h>
 #include <qobject.h>
 #include <qqmlintegration.h>
@@ -150,6 +151,9 @@ private:
     // keeping the live values so a reload does not discard unsaved edits.
     void rebuildSettings();
 
+    // Content hash of the declared settings source; empty if it cannot be read.
+    [[nodiscard]] QByteArray settingsHash() const;
+
     QString m_id;
 
     QString m_name;
@@ -174,6 +178,7 @@ private:
     QString m_settingsSource;
     QString m_settingsUiSource;
     SettingsObject* m_settings = nullptr;
+    QByteArray m_settingsHash;
     QVariantMap m_storedSettings;
     bool m_settingsDirty = false;
 };

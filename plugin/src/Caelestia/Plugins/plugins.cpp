@@ -7,7 +7,10 @@
 #include <qjsondocument.h>
 #include <qjsonobject.h>
 #include <qloggingcategory.h>
+#include <qprocess.h>
+#include <qregularexpression.h>
 #include <qstandardpaths.h>
+#include <qurl.h>
 
 #include "pluginurlinterceptor.hpp"
 
@@ -27,6 +30,14 @@ QString configDir() {
 
 QString pluginDataDir() {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/caelestia/plugins");
+}
+
+bool pathInside(const QString& path, const QString& root) {
+    const auto cleanPath = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    auto cleanRoot = QDir::cleanPath(QFileInfo(root).absoluteFilePath());
+    if (!cleanRoot.endsWith(QLatin1Char('/')))
+        cleanRoot.append(QLatin1Char('/'));
+    return cleanPath == cleanRoot.chopped(1) || cleanPath.startsWith(cleanRoot);
 }
 
 } // namespace
@@ -50,6 +61,56 @@ Plugins::Plugins(QObject* parent)
 
     connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, &Plugins::onWatchEvent);
     connect(m_watcher, &QFileSystemWatcher::fileChanged, this, &Plugins::onWatchEvent);
+
+    m_installProcess = new QProcess(this);
+    m_installProcess->setProcessChannelMode(QProcess::MergedChannels);
+
+    connect(m_installProcess, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
+        if (!m_installing)
+            return;
+
+        const auto output = QString::fromLocal8Bit(m_installProcess->readAll()).trimmed();
+
+        if (exitStatus != QProcess::NormalExit || exitCode != 0) {
+            QDir(m_installTemp).removeRecursively();
+            finishInstall(false, output.isEmpty() ? tr("Could not clone the plugin repository") : output);
+            return;
+        }
+
+        const auto temp = m_installTemp;
+        const auto target = m_installTarget;
+
+        if (!m_installSubpath.isEmpty()) {
+            const auto source = temp + QLatin1Char('/') + m_installSubpath;
+            if (!QFileInfo(source).isDir()) {
+                QDir(temp).removeRecursively();
+                finishInstall(false, tr("The repository does not contain %1").arg(m_installSubpath));
+                return;
+            }
+
+            if (!QDir().rename(source, target)) {
+                QDir(temp).removeRecursively();
+                finishInstall(false, tr("Could not move the plugin into %1").arg(target));
+                return;
+            }
+
+            QDir(temp).removeRecursively();
+        } else if (!QDir().rename(temp, target)) {
+            QDir(temp).removeRecursively();
+            finishInstall(false, tr("Could not move the plugin into %1").arg(target));
+            return;
+        }
+
+        reload();
+        finishInstall(true, {});
+    });
+
+    connect(m_installProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart || !m_installing)
+            return;
+
+        finishInstall(false, m_installProcess->errorString());
+    });
 }
 
 Plugins::~Plugins() {
@@ -469,6 +530,168 @@ void Plugins::bumpEntryPointsRevision() {
 
 int Plugins::entryPointsRevision() const {
     return m_entryPointsRevision;
+}
+
+bool Plugins::installing() const {
+    return m_installing;
+}
+
+QString Plugins::installingPlugin() const {
+    return m_installingPlugin;
+}
+
+QString Plugins::installError() const {
+    return m_installError;
+}
+
+QString Plugins::removeError() const {
+    return m_removeError;
+}
+
+PluginManifest* Plugins::manifestForId(const QString& pluginId) const {
+    for (auto* const plugin : m_plugins)
+        if (plugin->id() == pluginId)
+            return plugin;
+    return nullptr;
+}
+
+bool Plugins::isManagedDir(const QString& dir) const {
+    return pathInside(dir, pluginDataDir()) || pathInside(dir, configDir() + QStringLiteral("plugins"));
+}
+
+bool Plugins::isManaged(const QString& pluginId) const {
+    const auto* plugin = manifestForId(pluginId);
+    return plugin && isManagedDir(plugin->dir());
+}
+
+void Plugins::installPlugin(const QString& repo, const QString& path, const QString& pluginId) {
+    if (m_installing)
+        return;
+
+    m_installError.clear();
+    emit installErrorChanged();
+
+    if (repo.trimmed().isEmpty()) {
+        m_installError = tr("No repository was provided");
+        emit installErrorChanged();
+        emit installFinished(pluginId, false, m_installError);
+        return;
+    }
+
+    auto targetName = pluginId.trimmed();
+    if (targetName.isEmpty())
+        targetName = QFileInfo(QUrl(repo).path()).completeBaseName();
+    targetName.replace(QLatin1Char('/'), QLatin1Char('-'));
+    targetName.remove(QRegularExpression(QStringLiteral("[^A-Za-z0-9._-]")));
+
+    if (targetName.isEmpty()) {
+        m_installError = tr("Could not derive a plugin directory name");
+        emit installErrorChanged();
+        emit installFinished(pluginId, false, m_installError);
+        return;
+    }
+
+    auto subpath = QDir::cleanPath(path.trimmed());
+    if (subpath == QLatin1String("."))
+        subpath.clear();
+    if (subpath.startsWith(QLatin1Char('/')) || subpath == QLatin1String("..") ||
+        subpath.startsWith(QLatin1String("../"))) {
+        m_installError = tr("Invalid plugin subdirectory");
+        emit installErrorChanged();
+        emit installFinished(pluginId, false, m_installError);
+        return;
+    }
+
+    const auto dataDir = pluginDataDir();
+    const auto target = dataDir + QLatin1Char('/') + targetName;
+    const auto temp = dataDir + QLatin1Char('/') + QLatin1Char('.') + targetName + QStringLiteral(".install");
+
+    if (QFileInfo::exists(target)) {
+        m_installError = tr("A plugin directory named %1 already exists").arg(targetName);
+        emit installErrorChanged();
+        emit installFinished(pluginId, false, m_installError);
+        return;
+    }
+
+    QDir().mkpath(dataDir);
+    QDir(temp).removeRecursively();
+
+    m_installing = true;
+    m_installingPlugin = pluginId.isEmpty() ? targetName : pluginId;
+    m_installTemp = temp;
+    m_installTarget = target;
+    m_installSubpath = subpath;
+
+    emit installingChanged();
+    emit installingPluginChanged();
+
+    m_installProcess->setProgram(QStringLiteral("git"));
+    m_installProcess->setArguments({
+        QStringLiteral("clone"),
+        QStringLiteral("--depth"),
+        QStringLiteral("1"),
+        QStringLiteral("--"),
+        repo,
+        temp,
+    });
+    m_installProcess->start();
+}
+
+bool Plugins::removePlugin(const QString& pluginId) {
+    m_removeError.clear();
+    emit removeErrorChanged();
+
+    auto* const plugin = manifestForId(pluginId);
+    if (!plugin) {
+        m_removeError = tr("Plugin not found");
+        emit removeErrorChanged();
+        emit pluginRemoved(pluginId, false, m_removeError);
+        return false;
+    }
+
+    if (!isManagedDir(plugin->dir())) {
+        m_removeError = tr("This plugin is not in a managed plugin directory");
+        emit removeErrorChanged();
+        emit pluginRemoved(pluginId, false, m_removeError);
+        return false;
+    }
+
+    const auto dir = plugin->dir();
+
+    // Disable and persist before deleting, otherwise reload() would read the old enabled entry
+    // back from disk and leave a stale id behind.
+    setPluginEnabled(pluginId, false);
+    saveConfig();
+
+    if (!QDir(dir).removeRecursively()) {
+        m_removeError = tr("Could not delete %1").arg(dir);
+        emit removeErrorChanged();
+        emit pluginRemoved(pluginId, false, m_removeError);
+        return false;
+    }
+
+    reload();
+    emit pluginRemoved(pluginId, true, {});
+    return true;
+}
+
+void Plugins::finishInstall(bool success, const QString& message) {
+    const auto pluginId = m_installingPlugin;
+
+    if (!success) {
+        m_installError = message;
+        emit installErrorChanged();
+    }
+
+    m_installing = false;
+    m_installingPlugin.clear();
+    m_installTemp.clear();
+    m_installTarget.clear();
+    m_installSubpath.clear();
+
+    emit installingChanged();
+    emit installingPluginChanged();
+    emit installFinished(pluginId, success, message);
 }
 
 QStringList Plugins::searchRoots() const {

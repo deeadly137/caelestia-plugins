@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import Caelestia.Plugins
@@ -18,6 +19,7 @@ PageBase {
         return list.find(p => p.id === nState.selectedPluginId) ?? null;
     }
     readonly property var settings: plugin ? plugin.settings : null
+    readonly property bool managed: plugin ? Plugins.isManaged(plugin.id) : false
 
     property var values: ({})
     property var keys: []
@@ -182,10 +184,47 @@ PageBase {
         }
 
         InfoRow {
-            last: true
+            last: !root.managed
             icon: "extension"
             label: Tr.tr("Entry points")
             value: root.plugin ? String(root.plugin.entryPoints.length) : ""
+        }
+
+        SectionHeader {
+            visible: root.managed
+            text: Tr.tr("Manage")
+        }
+
+        DialogRowButton {
+            visible: root.managed
+            rootParent: root
+            icon: "delete_forever"
+            label: Tr.tr("Remove plugin")
+            header: Tr.tr("Remove %1?").arg(root.plugin?.name ?? "")
+            acceptLabel: Tr.tr("Remove")
+            separateContent: true
+
+            content: Component {
+                StyledText {
+                    anchors.fill: parent
+                    text: Tr.tr("This deletes the plugin directory. Its saved settings are kept.")
+                    color: Colours.palette.m3onSurfaceVariant
+                    font: Tokens.font.body.medium
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    verticalAlignment: Text.AlignTop
+                }
+            }
+
+            onAccepted: {
+                const id = root.plugin?.id;
+                if (!id)
+                    return;
+
+                if (Plugins.removePlugin(id))
+                    root.nState.closeSubPage();
+                else
+                    Toaster.toast(Tr.tr("Could not remove plugin"), Plugins.removeError, "error");
+            }
         }
     }
 }

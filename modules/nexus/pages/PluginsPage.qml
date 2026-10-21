@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Caelestia
 import Caelestia.Components
 import Caelestia.Config
 import Caelestia.Plugins
@@ -48,6 +49,22 @@ PageBase {
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
+
+        Connections {
+            target: Plugins
+
+            function onInstallFinished(pluginId, success, message): void {
+                if (!success) {
+                    Toaster.toast(qsTr("Plugin installation failed"), message, "error");
+                    return;
+                }
+
+                Toaster.toast(qsTr("Plugin installed"), pluginId, "extension");
+                const plugin = Array.from(Plugins.plugins).find(p => p.id === pluginId);
+                if (plugin)
+                    root.openPlugin(plugin);
+            }
+        }
 
         // // Empty state
         // StyledText {
@@ -113,6 +130,16 @@ PageBase {
             text: qsTr("No plugins available.")
             color: Colours.palette.m3outline
             font: Tokens.font.body.medium
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            visible: Plugins.installError.length > 0
+            text: qsTr("Installation failed: %1").arg(Plugins.installError)
+            color: Colours.palette.m3error
+            font: Tokens.font.body.medium
+            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         }
 
         PluginGrid {
@@ -360,8 +387,10 @@ PageBase {
                         isRound: true
                         shapeMorph: true
                         fillWidth: true
-                        text: qsTr("Install")
+                        text: Plugins.installingPlugin === plugin.modelData.id ? qsTr("Installing...") : qsTr("Install")
+                        disabled: Plugins.installing || !(plugin.modelData.repo ?? "")
                         font: Tokens.font.body.builders.small.width(110).build()
+                        onClicked: Plugins.installPlugin(plugin.modelData.repo, plugin.modelData.path ?? "", plugin.modelData.id)
                     }
 
                     IconButton {
@@ -370,6 +399,7 @@ PageBase {
                         icon: "home"
                         type: IconButton.Tonal
                         implicitWidth: implicitHeight + Tokens.padding.small * 2
+                        onClicked: Qt.openUrlExternally(plugin.modelData.repo)
                     }
                 }
             }

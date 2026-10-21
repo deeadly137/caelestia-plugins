@@ -118,6 +118,11 @@ PageBase {
             onToggled: GlobalConfig.background.wallpaperEnabled = checked
         }
 
+        PluginPageExtensions {
+            Layout.fillWidth: true
+            page: "wallpaper"
+        }
+
         ToggleRow {
             Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
 
