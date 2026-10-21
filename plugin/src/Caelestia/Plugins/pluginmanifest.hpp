@@ -35,6 +35,14 @@ class PluginManifest : public QObject {
     Q_PROPERTY(QString description READ description NOTIFY descriptionChanged)
     Q_PROPERTY(QString author READ author NOTIFY authorChanged)
     Q_PROPERTY(QString requires READ requirement NOTIFY requirementChanged)
+    Q_PROPERTY(QStringList tags READ tags NOTIFY tagsChanged)
+
+    // Optional card artwork. The raw values are relative to the manifest directory (or absolute
+    // URLs); the Source variants resolve them for use in Image.source and are generation stamped.
+    Q_PROPERTY(QString banner READ banner NOTIFY bannerChanged)
+    Q_PROPERTY(QString logo READ logo NOTIFY logoChanged)
+    Q_PROPERTY(QString bannerSource READ bannerSource NOTIFY bannerSourceChanged)
+    Q_PROPERTY(QString logoSource READ logoSource NOTIFY logoSourceChanged)
 
     // Other props. The directory is the manifest's identity and never changes.
     Q_PROPERTY(QString dir READ dir CONSTANT)
@@ -70,6 +78,11 @@ public:
     [[nodiscard]] QString description() const;
     [[nodiscard]] QString author() const;
     [[nodiscard]] QString requirement() const;
+    [[nodiscard]] QStringList tags() const;
+    [[nodiscard]] QString banner() const;
+    [[nodiscard]] QString logo() const;
+    [[nodiscard]] QString bannerSource() const;
+    [[nodiscard]] QString logoSource() const;
 
     [[nodiscard]] QString dir() const;
     [[nodiscard]] QList<EntryPoint> entryPoints() const;
@@ -132,6 +145,11 @@ signals:
     void descriptionChanged();
     void authorChanged();
     void requirementChanged();
+    void tagsChanged();
+    void bannerChanged();
+    void logoChanged();
+    void bannerSourceChanged();
+    void logoSourceChanged();
     void entryPointsChanged();
     void validChanged();
     void errorChanged();
@@ -151,6 +169,9 @@ private:
     // keeping the live values so a reload does not discard unsaved edits.
     void rebuildSettings();
 
+    // Absolute URL for a manifest-relative asset. Absolute URLs are passed through unchanged.
+    [[nodiscard]] QString assetUrl(const QString& source) const;
+
     // Content hash of the declared settings source; empty if it cannot be read.
     [[nodiscard]] QByteArray settingsHash() const;
 
@@ -163,6 +184,9 @@ private:
     QString m_description;
     QString m_author;
     QString m_requires;
+    QStringList m_tags;
+    QString m_banner;
+    QString m_logo;
 
     QString m_dir;
     QString m_path;

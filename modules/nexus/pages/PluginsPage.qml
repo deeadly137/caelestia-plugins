@@ -26,11 +26,16 @@ PageBase {
 
     readonly property var installedPlugins: Array.from(Plugins.plugins).map(installedCard)
     readonly property var installedIds: installedPlugins.map(plugin => plugin.id)
-    readonly property var storePlugins: Array.from(PluginList.plugins).map(plugin => Object.assign({}, plugin, {
-        installed: installedIds.indexOf(plugin.id) !== -1
-    }))
+    readonly property var storePlugins: Array.from(PluginList.plugins)
+        .filter(plugin => installedIds.indexOf(plugin.id) === -1)
+        .map(plugin => Object.assign({}, plugin, {
+            installed: false
+        }))
 
     function installedCard(plugin) {
+        const banner = plugin.bannerSource || "";
+        const logo = plugin.logoSource || "";
+
         return {
             id: plugin.id,
             name: plugin.name || plugin.id,
@@ -38,8 +43,10 @@ PageBase {
             description: plugin.description || "",
             icon: plugin.icon || "extension",
             version: plugin.version || "",
-            tags: [],
-            image: "",
+            tags: Array.from(plugin.tags ?? []),
+            banner: banner,
+            logo: logo,
+            image: banner,
             installed: true
         };
     }
@@ -294,7 +301,9 @@ PageBase {
                 id: heroImage
 
                 anchors.fill: parent
-                source: plugin.modelData.image ?? ""
+                source: plugin.modelData.banner ?? plugin.modelData.image ?? ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
                 retainWhileLoading: true
                 opacity: status === Image.Ready ? 1 : 0
 
@@ -302,6 +311,40 @@ PageBase {
                     Anim {
                         type: Anim.SlowEffects
                     }
+                }
+            }
+
+            StyledRect {
+                id: logoBadge
+
+                readonly property real badgeSize: Math.round(Tokens.font.icon.large.pointSize * 3.2)
+
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.margins: Tokens.padding.large
+                implicitWidth: badgeSize
+                implicitHeight: badgeSize
+                radius: Tokens.rounding.large
+                color: Colours.tPalette.m3surfaceContainerHigh
+
+                Image {
+                    id: logoImage
+
+                    anchors.fill: parent
+                    anchors.margins: Tokens.padding.small
+                    source: plugin.modelData.logo ?? ""
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    mipmap: true
+                    visible: source !== "" && status === Image.Ready
+                }
+
+                MaterialIcon {
+                    anchors.centerIn: parent
+                    visible: !logoImage.visible
+                    text: plugin.modelData.icon || "extension"
+                    color: Colours.palette.m3primary
+                    fontStyle: Tokens.font.icon.medium
                 }
             }
         }

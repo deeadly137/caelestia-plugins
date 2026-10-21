@@ -86,6 +86,9 @@ void PluginManifest::parse() {
     QString description;
     QString author;
     QString requirement;
+    QStringList tags;
+    QString banner;
+    QString logo;
     QString settingsSource;
     QString settingsUiSource;
     QList<EntryPoint> entryPoints;
@@ -120,6 +123,19 @@ void PluginManifest::parse() {
         icon = obj.value(QStringLiteral("icon")).toString();
         description = obj.value(QStringLiteral("description")).toString();
         requirement = obj.value(QStringLiteral("requires")).toString();
+
+        for (const auto& value : obj.value(QStringLiteral("tags")).toArray()) {
+            const auto tag = value.toString().trimmed();
+            if (!tag.isEmpty() && !tags.contains(tag))
+                tags.append(tag);
+        }
+
+        // `image` was the original single-artwork field. Keep reading it as a banner so plugins
+        // written against the old manifest format still get a card image.
+        banner = obj.value(QStringLiteral("banner")).toString();
+        if (banner.isEmpty())
+            banner = obj.value(QStringLiteral("image")).toString();
+        logo = obj.value(QStringLiteral("logo")).toString();
 
         settingsSource = obj.value(QStringLiteral("settings")).toString();
         settingsUiSource = obj.value(QStringLiteral("settingsUi")).toString();
@@ -176,6 +192,17 @@ void PluginManifest::parse() {
     ASSIGN(m_description, description, descriptionChanged)
     ASSIGN(m_author, author, authorChanged)
     ASSIGN(m_requires, requirement, requirementChanged)
+    ASSIGN(m_tags, tags, tagsChanged)
+    if (m_banner != banner) {
+        m_banner = banner;
+        emit bannerChanged();
+        emit bannerSourceChanged();
+    }
+    if (m_logo != logo) {
+        m_logo = logo;
+        emit logoChanged();
+        emit logoSourceChanged();
+    }
     ASSIGN(m_settingsSource, settingsSource, settingsSourceChanged)
     ASSIGN(m_settingsUiSource, settingsUiSource, settingsUiSourceChanged)
     ASSIGN(m_entryPoints, entryPoints, entryPointsChanged)
@@ -224,8 +251,43 @@ QString PluginManifest::requirement() const {
     return m_requires;
 }
 
+QStringList PluginManifest::tags() const {
+    return m_tags;
+}
+
+QString PluginManifest::banner() const {
+    return m_banner;
+}
+
+QString PluginManifest::logo() const {
+    return m_logo;
+}
+
+QString PluginManifest::bannerSource() const {
+    return assetUrl(m_banner);
+}
+
+QString PluginManifest::logoSource() const {
+    return assetUrl(m_logo);
+}
+
 QString PluginManifest::dir() const {
     return m_dir;
+}
+
+QString PluginManifest::assetUrl(const QString& source) const {
+    if (source.isEmpty())
+        return {};
+
+    const QUrl url(source);
+    if (!url.isRelative())
+        return source;
+    if (source.startsWith(QLatin1Char('/')))
+        return QUrl::fromLocalFile(source).toString();
+
+    auto local = QUrl::fromLocalFile(m_dir + QStringLiteral("/") + source);
+    local.setQuery(QStringLiteral("gen=%1").arg(m_generation));
+    return local.toString();
 }
 
 QString PluginManifest::sourceUrl(const QString& source) const {
@@ -319,6 +381,8 @@ void PluginManifest::setGeneration(int generation) {
 
     emit settingsSourceChanged();
     emit settingsUiSourceChanged();
+    emit bannerSourceChanged();
+    emit logoSourceChanged();
     emit generationChanged();
 }
 
