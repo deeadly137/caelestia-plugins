@@ -1,9 +1,9 @@
 # Plugin examples
 
-These are development fixtures, not installed plugins.
+These are development fixtures, not installed plugins. Their canonical public repositories are:
 
-- `desktoppet` — a draggable pet that demonstrates the `desktop-widget` entry point and mouse input on the desktop layer.
-- `livewall` — a full-screen animated wallpaper widget. It accepts a local video or animated image through its `source` setting and falls back to the bundled `loop.gif`.
+- [plugin-desktop-pet](https://github.com/deeadly137/plugin-desktop-pet) — a draggable pet that demonstrates the `desktop-widget` entry point and mouse input on the desktop layer.
+- [plugin-livewallpaper](https://github.com/deeadly137/plugin-livewallpaper) — a full-screen animated wallpaper widget. It accepts a local video or animated image through its `source` setting and falls back to the bundled `loop.gif`.
 
 ## Try them
 
