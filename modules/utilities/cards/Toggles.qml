@@ -6,6 +6,8 @@ import Quickshell.Bluetooth
 import Caelestia.Components
 import Caelestia.Config
 import Caelestia.Plugins
+import Caelestia.I18n
+import Caelestia.State
 import qs.components
 import qs.components.controls
 import qs.services
@@ -22,21 +24,20 @@ StyledRect {
         const seenIds = new Set();
 
         return Config.utilities.quickToggles.values.filter(item => {
-            if (!item.enabled)
+            if (!item.enabled || seenIds.has(item.id))
                 return false;
 
-            if (seenIds.has(item.id)) {
-                return false;
-            }
+            // TODO: hide wallpaper playing toggle if wallpaper is live
 
-            if (item.id === "vpn") {
+            if (item.id === "vpn")
                 return GlobalConfig.utilities.vpn.selectedProvider.length > 0;
-            }
 
             seenIds.add(item.id);
             return true;
         });
     }
+    readonly property int splitIndex: Math.ceil(quickToggles.length / 2)
+    readonly property bool needExtraRow: quickToggles.length > 6
 
     implicitHeight: layout.implicitHeight + Tokens.padding.extraLargeIncreased
 
@@ -48,38 +49,20 @@ StyledRect {
 
         anchors.fill: parent
         anchors.margins: Tokens.padding.large
-        spacing: Tokens.spacing.small
+        spacing: Tokens.spacing.medium
 
         StyledText {
-            Layout.bottomMargin: Tokens.spacing.medium - parent.spacing
-            text: qsTr("Quick Toggles")
+            text: Tr.tr("Quick toggles")
             font: Tokens.font.body.medium
         }
 
-        Repeater {
-            model: {
-                const arr = root.quickToggles;
-                const n = arr.length;
-                if (n < 3)
-                    return [arr];
+        QuickToggleRow {
+            model: root.needExtraRow ? root.quickToggles.slice(0, root.splitIndex) : root.quickToggles
+        }
 
-                const k = Math.ceil(n / 6);
-                const baseSize = Math.floor(n / k);
-                const remainder = n % k;
-
-                const subsets = [];
-                let start = 0;
-
-                for (let i = 0; i < k; i++) {
-                    const size = baseSize + (i < remainder ? 1 : 0);
-                    subsets.push(arr.slice(start, start + size));
-                    start += size;
-                }
-
-                return subsets;
-            }
-
-            QuickToggleRow {}
+        QuickToggleRow {
+            visible: root.needExtraRow
+            model: root.needExtraRow ? root.quickToggles.slice(root.splitIndex) : []
         }
     }
 
@@ -91,17 +74,13 @@ StyledRect {
     }
 
     component QuickToggleRow: ButtonRow {
-        id: toggleRow
-
-        required property var modelData
+        property alias model: repeater.model
 
         Layout.fillWidth: true
-        spacing: Tokens.spacing.extraSmall
+        spacing: Tokens.spacing.small
 
         Repeater {
             id: repeater
-
-            model: toggleRow.modelData
 
             delegate: DelegateChooser {
                 role: "id"
@@ -118,9 +97,9 @@ StyledRect {
                     roleValue: "bluetooth"
                     delegate: Toggle {
                         icon: "bluetooth"
-                        checked: Bluetooth.defaultAdapter?.enabled ?? false // qmllint disable unresolved-type
+                        checked: Bluetooth.defaultAdapter?.enabled ?? false
                         onClicked: {
-                            const adapter = Bluetooth.defaultAdapter; // qmllint disable unresolved-type
+                            const adapter = Bluetooth.defaultAdapter;
                             if (adapter)
                                 adapter.enabled = !adapter.enabled;
                         }
@@ -154,16 +133,24 @@ StyledRect {
                     roleValue: "gameMode"
                     delegate: Toggle {
                         icon: "gamepad"
-                        checked: GameMode.enabled
-                        onClicked: GameMode.enabled = !GameMode.enabled
+                        checked: RuntimeState.gameMode
+                        onClicked: RuntimeState.gameMode = !RuntimeState.gameMode
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "wallpaperPlaying"
+                    delegate: Toggle {
+                        icon: "smart_display"
+                        checked: PersistentState.wallpaperPlaying
+                        onClicked: PersistentState.wallpaperPlaying = !PersistentState.wallpaperPlaying
                     }
                 }
                 DelegateChoice {
                     roleValue: "dnd"
                     delegate: Toggle {
                         icon: "notifications_off"
-                        checked: Notifs.dnd
-                        onClicked: Notifs.dnd = !Notifs.dnd
+                        checked: PersistentState.doNotDisturb
+                        onClicked: PersistentState.doNotDisturb = !PersistentState.doNotDisturb
                     }
                 }
                 DelegateChoice {
@@ -179,8 +166,6 @@ StyledRect {
                 }
                 DelegateChoice {
                     delegate: EntryPointLoader {
-                        id: entryLoader
-
                         required property var modelData
 
                         // qmllint disable missing-property

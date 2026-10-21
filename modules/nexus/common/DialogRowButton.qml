@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Caelestia.Blobs
 import Caelestia.Config
+import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.components.effects
@@ -22,8 +23,8 @@ Item {
     property bool separateContent
     property int horizontalContentMargin
 
-    property real openWidth: Math.min(rootParent.width * 0.8, 400)
-    property real openHeight: Math.min(rootParent.height * 0.8, 600)
+    property real openWidth: Math.min(rootParent.width * 0.8, Tokens.sizes.nexus.maxDialogWidth)
+    property real openHeight: Math.min(rootParent.height * 0.8, Tokens.sizes.nexus.maxDialogHeight)
     property bool open
 
     signal accepted
@@ -165,16 +166,18 @@ Item {
             }
 
             anchors.fill: parent
-            anchors.margins: Tokens.padding.extraLarge
-            anchors.bottomMargin: Tokens.padding.largeIncreased
 
             opacity: 0
             active: opacity > 0
             asynchronous: true
 
             sourceComponent: MouseArea {
+                onWheel: event => event.accepted = true
+
                 ColumnLayout {
                     anchors.fill: parent
+                    anchors.margins: Tokens.padding.extraLarge
+                    anchors.bottomMargin: Tokens.padding.largeIncreased
                     spacing: 0
 
                     StyledText {
@@ -219,7 +222,7 @@ Item {
                             isRound: true
                             horizontalPadding: Tokens.padding.largeIncreased
                             verticalPadding: Tokens.padding.medium
-                            text: qsTr("Cancel")
+                            text: Tr.trCtx("Cancel", "button")
                             onClicked: {
                                 root.cancelled();
                                 root.open = false;
