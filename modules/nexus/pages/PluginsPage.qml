@@ -202,7 +202,7 @@ PageBase {
 
         implicitHeight: heroWrapper.implicitHeight + detailLayout.implicitHeight + detailLayout.anchors.topMargin + detailLayout.anchors.margins
 
-        StyledClippingRect {
+        ClipRect {
             id: heroWrapper
 
             anchors.left: parent.left
