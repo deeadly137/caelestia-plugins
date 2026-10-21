@@ -1,0 +1,12 @@
+{
+    "name": "desktoppet",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "description": "A draggable desktop pet used to test the desktop-widget plugin entry point.",
+    "entryPoints": [
+        {
+            "type": "desktop-widget",
+            "source": "DesktopPet.qml"
+        }
+    ]
+}

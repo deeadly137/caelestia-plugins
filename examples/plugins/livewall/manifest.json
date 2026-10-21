@@ -1,0 +1,13 @@
+{
+    "name": "livewall",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "description": "An animated desktop-widget wallpaper. Set a video or animated image in settings.",
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "desktop-widget",
+            "source": "LiveWallpaper.qml"
+        }
+    ]
+}
