@@ -104,6 +104,9 @@ QtObject {
                 Component {
                     PluginsPage {}
                 }
+                Component {
+                    PluginDetailPage {}
+                }
             }
         },
 

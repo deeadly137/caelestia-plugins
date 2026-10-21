@@ -11,6 +11,7 @@ QtObject {
     property bool searchOpen
 
     property string selectedWallpaperCategory
+    property string selectedPluginId
     property BluetoothDevice selectedBtDevice
     property DesktopEntry selectedApp
     property int editingVpnIndex: -1

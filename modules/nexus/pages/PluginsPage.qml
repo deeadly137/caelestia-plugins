@@ -14,10 +14,10 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
-    // function openPlugin(plugin: PluginManifest): void {
-    //     nState.selectedPlugin = plugin;
-    //     nState.openSubPage(1);
-    // }
+    function openPlugin(plugin): void {
+        nState.selectedPluginId = plugin.id;
+        nState.openSubPage(1);
+    }
 
     title: qsTr("Plugins")
     maxWidth: Tokens.sizes.nexus.maxContentWidth * 2
@@ -35,6 +35,8 @@ PageBase {
             name: plugin.name || plugin.id,
             author: plugin.author || qsTr("Unknown"),
             description: plugin.description || "",
+            icon: plugin.icon || "extension",
+            version: plugin.version || "",
             tags: [],
             image: "",
             installed: true
@@ -309,7 +311,7 @@ PageBase {
                 Layout.topMargin: Tokens.spacing.extraSmall
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                text: plugin.modelData.description.repeat(Math.round(Math.random()) + 1)
+                text: plugin.modelData.description
                 color: Colours.palette.m3onSurfaceVariant
                 font: Tokens.font.body.small
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -371,6 +373,16 @@ PageBase {
                     }
                 }
             }
+        }
+
+        HoverHandler {
+            cursorShape: plugin.isInstalled ? Qt.PointingHandCursor : Qt.ArrowCursor
+        }
+
+        TapHandler {
+            enabled: plugin.isInstalled
+            acceptedButtons: Qt.LeftButton
+            onTapped: root.openPlugin(plugin.modelData)
         }
     }
 }

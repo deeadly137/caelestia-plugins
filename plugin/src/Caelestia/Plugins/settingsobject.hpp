@@ -4,6 +4,8 @@
 #include <qobject.h>
 #include <qqmlintegration.h>
 #include <qqmlparserstatus.h>
+#include <qvariant.h>
+#include <qvariantmap.h>
 
 namespace caelestia::plugins {
 
@@ -24,6 +26,14 @@ public:
     [[nodiscard]] QVariantMap toMap() const;
 
     void load(const QVariantMap& values);
+
+    // Snapshot of the current values, for settings UIs that do not want to rely on dynamic
+    // property access.
+    [[nodiscard]] Q_INVOKABLE QVariantMap values() const;
+
+    // Read or write a single user defined property by name.
+    [[nodiscard]] Q_INVOKABLE QVariant value(const QString& key) const;
+    Q_INVOKABLE bool setValue(const QString& key, const QVariant& value);
 
     // All user defined properties
     [[nodiscard]] Q_INVOKABLE QStringList keys() const;

@@ -67,6 +67,32 @@ void SettingsObject::load(const QVariantMap& values) {
     m_loading = false;
 }
 
+QVariantMap SettingsObject::values() const {
+    return toMap();
+}
+
+QVariant SettingsObject::value(const QString& key) const {
+    const auto* const meta = metaObject();
+    const int index = meta->indexOfProperty(key.toUtf8().constData());
+    if (index < basePropertyOffset())
+        return {};
+
+    return meta->property(index).read(this);
+}
+
+bool SettingsObject::setValue(const QString& key, const QVariant& value) {
+    const auto* const meta = metaObject();
+    const int index = meta->indexOfProperty(key.toUtf8().constData());
+    if (index < basePropertyOffset())
+        return false;
+
+    const auto prop = meta->property(index);
+    if (!prop.isWritable())
+        return false;
+
+    return prop.write(this, value);
+}
+
 QStringList SettingsObject::keys() const {
     QStringList keys;
 
