@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Quickshell
 import Caelestia.Components
 import Caelestia.Config
+import Caelestia.Plugins
 import qs.components
 import qs.components.controls
 import qs.services
@@ -21,6 +22,24 @@ PageBase {
     title: qsTr("Plugins")
     maxWidth: Tokens.sizes.nexus.maxContentWidth * 2
     horizontalPadding: Tokens.padding.extraLarge
+
+    readonly property var installedPlugins: Array.from(Plugins.plugins).map(installedCard)
+    readonly property var installedIds: installedPlugins.map(plugin => plugin.id)
+    readonly property var storePlugins: Array.from(PluginList.plugins).map(plugin => Object.assign({}, plugin, {
+        installed: installedIds.indexOf(plugin.id) !== -1
+    }))
+
+    function installedCard(plugin) {
+        return {
+            id: plugin.id,
+            name: plugin.name || plugin.id,
+            author: plugin.author || qsTr("Unknown"),
+            description: plugin.description || "",
+            tags: [],
+            image: "",
+            installed: true
+        };
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -46,16 +65,17 @@ PageBase {
             font: Tokens.font.title.medium
         }
 
+        StyledText {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            visible: root.installedPlugins.length === 0
+            text: qsTr("No plugins installed.")
+            color: Colours.palette.m3outline
+            font: Tokens.font.body.medium
+        }
+
         PluginGrid {
-            plugins: Array.from({
-                length: 4
-            }, () => ({
-                        name: "Example plugin",
-                        author: "sora",
-                        description: "An example of a plugin. Some long text to test wrapping, blah blah blah. :adodead:",
-                        tags: ["example", "tag", "something"],
-                        installed: true
-                    }))
+            plugins: root.installedPlugins
         }
 
         // Store
@@ -65,15 +85,36 @@ PageBase {
             font: Tokens.font.title.medium
         }
 
+        StyledText {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            visible: PluginList.loading
+            text: qsTr("Loading plugins...")
+            color: Colours.palette.m3outline
+            font: Tokens.font.body.medium
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            visible: PluginList.error.length > 0
+            text: qsTr("Could not load plugin list: %1").arg(PluginList.error)
+            color: Colours.palette.m3error
+            font: Tokens.font.body.medium
+            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            visible: !PluginList.loading && PluginList.error.length === 0 && root.storePlugins.length === 0
+            text: qsTr("No plugins available.")
+            color: Colours.palette.m3outline
+            font: Tokens.font.body.medium
+        }
+
         PluginGrid {
-            plugins: Array.from({
-                length: 30
-            }, () => ({
-                        name: "Example plugin",
-                        author: "sora",
-                        description: "An example of a plugin. Some long text to test wrapping, blah blah blah. :adodead:",
-                        tags: ["example", "tag", "something"]
-                    }))
+            plugins: root.storePlugins
         }
 
         // Repeater {
