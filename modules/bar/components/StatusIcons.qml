@@ -3,7 +3,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Caelestia
 import Caelestia.Config
+import Caelestia.Plugins
 import qs.components
 import qs.services
 import qs.utils
@@ -61,7 +63,27 @@ StyledRect {
             model: ScriptModel {
                 id: model
 
-                values: root.Config.bar.statusIcons.values.filter(e => e.enabled)
+                // Configured icons keep their order; plugin icons are appended in
+                // `properties.order` order unless the config already lists their id.
+                values: {
+                    CUtils.dependency(Plugins.entryPointsRevision);
+
+                    const configured = root.Config.bar.statusIcons.values;
+                    const placed = new Set(configured.map(entry => entry.id));
+
+                    const extra = Plugins.entryPoints(EntryPointType.StatusIcon)
+                        .filter(entry => !placed.has(entry.properties.name ?? ""))
+                        .sort((a, b) => {
+                            const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
+                            return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
+                        })
+                        .map(entry => ({
+                            id: entry.properties.name,
+                            enabled: true
+                        }));
+
+                    return configured.filter(entry => entry.enabled).concat(extra);
+                }
             }
 
             DelegateChooser {
@@ -139,6 +161,21 @@ StyledRect {
                     delegate: EntryWrapper {
                         BatteryStatus {
                             colour: root.colour
+                        }
+                    }
+                }
+                DelegateChoice {
+                    delegate: EntryWrapper {
+                        id: pluginStatusWrapper
+
+                        EntryPointLoader {
+                            entryPoint: {
+                                const id = pluginStatusWrapper.modelData.id;
+                                const entry = Plugins.entryPoints(EntryPointType.StatusIcon).find(e => e.properties.name === id);
+                                if (!entry)
+                                    console.warn("No plugin status icon found for", id);
+                                return entry;
+                            }
                         }
                     }
                 }
