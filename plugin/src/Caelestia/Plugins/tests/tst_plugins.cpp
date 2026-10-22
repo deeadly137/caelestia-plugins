@@ -101,6 +101,9 @@ private slots:
     void manifestRejectsDuplicateEntryPointNames();
     void manifestRequiresNameForBarEntry();
     void manifestChecksRequires();
+    void manifestReadsApiVersion();
+    void manifestRejectsNewerApi();
+    void dataDirFollowsId();
 
     void settingsRoundTrip();
     void settingsChangedSignal();
@@ -108,6 +111,7 @@ private slots:
     void configKeepsStateOnNonObjectRoot();
     void configKeepsStateOnBrokenJson();
     void configSavesJsonObject();
+    void reloadPluginBumpsGeneration();
 
     void installRejectsIdMismatch();
     void installRejectsMissingRepository();
@@ -304,6 +308,56 @@ void TestPlugins::manifestChecksRequires() {
     QVERIFY(fail.error().contains(QStringLiteral("Requires")));
 }
 
+void TestPlugins::manifestReadsApiVersion() {
+    const auto implicit = writePlugin(QStringLiteral("api-implicit"),
+        R"({"name":"Implicit","author":"a","entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    const PluginManifest implicitManifest(implicit, implicit + QStringLiteral("/manifest.json"));
+    QVERIFY2(implicitManifest.valid(), qUtf8Printable(implicitManifest.error()));
+    QCOMPARE(implicitManifest.api(), 1);
+
+    const auto explicitOne = writePlugin(QStringLiteral("api-one"),
+        R"({"name":"One","author":"a","api":1,"entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    const PluginManifest one(explicitOne, explicitOne + QStringLiteral("/manifest.json"));
+    QVERIFY2(one.valid(), qUtf8Printable(one.error()));
+    QCOMPARE(one.api(), 1);
+
+    // A string is accepted too, so `"api": "1"` does not silently mean unset
+    const auto stringApi = writePlugin(QStringLiteral("api-string"),
+        R"({"name":"String","author":"a","api":"1","entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    const PluginManifest stringManifest(stringApi, stringApi + QStringLiteral("/manifest.json"));
+    QVERIFY2(stringManifest.valid(), qUtf8Printable(stringManifest.error()));
+    QCOMPARE(stringManifest.api(), 1);
+}
+
+void TestPlugins::manifestRejectsNewerApi() {
+    const auto dir = writePlugin(QStringLiteral("api-new"),
+        R"({"name":"New","author":"a","api":2,"entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    const PluginManifest manifest(dir, dir + QStringLiteral("/manifest.json"));
+
+    QVERIFY(!manifest.valid());
+    QVERIFY(manifest.error().contains(QStringLiteral("plugin API 2")));
+
+    const auto zero = writePlugin(QStringLiteral("api-zero"),
+        R"({"name":"Zero","author":"a","api":0,"entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    const PluginManifest zeroManifest(zero, zero + QStringLiteral("/manifest.json"));
+    QVERIFY(!zeroManifest.valid());
+}
+
+void TestPlugins::dataDirFollowsId() {
+    const auto dir = writePlugin(QStringLiteral("datadir"),
+        R"({"name":"DataDir","author":"SomeAuthor","entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    const PluginManifest manifest(dir, dir + QStringLiteral("/manifest.json"));
+    QVERIFY2(manifest.valid(), qUtf8Printable(manifest.error()));
+
+    const auto expected = m_root->path() + QStringLiteral("/data/caelestia/plugin-data/someauthor/datadir");
+    QCOMPARE(manifest.dataDir(), expected);
+
+    // Only created when the plugin asks for it
+    QVERIFY(!QFileInfo::exists(expected));
+    QCOMPARE(manifest.ensureDataDir(), expected);
+    QVERIFY(QFileInfo(expected).isDir());
+}
+
 void TestPlugins::settingsRoundTrip() {
     TestSettings settings;
     settings.componentComplete();
@@ -376,6 +430,40 @@ void TestPlugins::configSavesJsonObject() {
     QCOMPARE(
         doc.object().value(QStringLiteral("enabled")).toArray().first().toString(), QStringLiteral("author/plugin"));
     QVERIFY(doc.object().value(QStringLiteral("settings")).isObject());
+}
+
+void TestPlugins::reloadPluginBumpsGeneration() {
+    const auto id = QStringLiteral("author/reload");
+    const auto dir = dataDir() + QStringLiteral("/reload");
+    QDir().mkpath(dir);
+    writeFile(dir + QStringLiteral("/manifest.json"),
+        R"({"name":"reload","author":"author","entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    writeFile(dir + QStringLiteral("/W.qml"), "import QtQuick\n\nItem {}\n");
+    writeFile(configPath(), R"({"enabled":["author/reload"]})");
+
+    Plugins plugins;
+    plugins.componentComplete();
+
+    PluginManifest* manifest = nullptr;
+    for (const auto& entry : plugins.plugins()) {
+        auto* const candidate = entry.value<PluginManifest*>();
+        if (candidate && candidate->id() == id)
+            manifest = candidate;
+    }
+
+    QVERIFY(manifest);
+    QVERIFY(manifest->valid());
+    QVERIFY(manifest->enabled());
+
+    // Enabled plugins are registered on the first scan, so they already have a generation
+    QVERIFY(manifest->generation() > 0);
+    const int before = manifest->generation();
+
+    plugins.reloadPlugin(id);
+    QVERIFY(manifest->generation() > before);
+
+    // Unknown ids warn instead of crashing
+    plugins.reloadPlugin(QStringLiteral("nobody/nothing"));
 }
 
 void TestPlugins::installRejectsIdMismatch() {

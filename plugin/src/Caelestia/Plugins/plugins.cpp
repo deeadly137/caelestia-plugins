@@ -214,6 +214,10 @@ QString Plugins::shellVersion() const {
     return QStringLiteral(CAELESTIA_VERSION);
 }
 
+int Plugins::pluginApi() const {
+    return kPluginApiVersion;
+}
+
 QVariantList Plugins::plugins() const {
     return QVariant::fromValue(m_plugins).toList();
 }
@@ -286,6 +290,34 @@ QList<EntryPoint> Plugins::__entryPoints(EntryPointType::Type type) const {
 void Plugins::reload() {
     loadConfig();
     rescan(true);
+}
+
+void Plugins::reloadPlugin(const QString& pluginId) {
+    auto* const plugin = manifestForId(pluginId);
+    if (!plugin) {
+        qCWarning(lcPlugins) << "Cannot reload unknown plugin" << pluginId;
+        return;
+    }
+
+    // Re-read the manifest first: an edited `settings` or entry point list has to be picked up
+    // before the module fingerprint decides whether anything moved.
+    plugin->reparse();
+
+    // The fingerprint normally decides whether a generation is needed. A caller asking for a
+    // reload wants one regardless, so clear it and let updateModules re-register the module.
+    if (auto it = m_records.find(plugin->dir()); it != m_records.end())
+        it->fingerprint.clear();
+
+    updateModules(false);
+}
+
+PluginManifest* Plugins::manifestForId(const QString& pluginId) const {
+    const auto id = pluginId.trimmed().toLower();
+    for (auto* const plugin : m_plugins)
+        if (plugin->id() == id)
+            return plugin;
+
+    return nullptr;
 }
 
 void Plugins::loadConfig() {
@@ -641,13 +673,6 @@ QString Plugins::installError() const {
 
 QString Plugins::removeError() const {
     return m_removeError;
-}
-
-PluginManifest* Plugins::manifestForId(const QString& pluginId) const {
-    for (auto* const plugin : m_plugins)
-        if (plugin->id() == pluginId)
-            return plugin;
-    return nullptr;
 }
 
 bool Plugins::isManagedDir(const QString& dir) const {

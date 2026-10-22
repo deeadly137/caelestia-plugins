@@ -12,6 +12,10 @@
 
 namespace caelestia::plugins {
 
+// Bumped whenever the QML-facing plugin API changes in a way plugins must know about. Manifests
+// declare the version they were written against with `api`; a manifest without it is API 1.
+inline constexpr int kPluginApiVersion = 1;
+
 class SettingsObject;
 
 class PluginManifest : public QObject {
@@ -30,6 +34,9 @@ class PluginManifest : public QObject {
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
     Q_PROPERTY(QString version READ version NOTIFY versionChanged)
 
+    // The plugin API version the manifest was written against, 1 when it does not say
+    Q_PROPERTY(int api READ api NOTIFY apiChanged)
+
     // Optional metadata
     Q_PROPERTY(QString icon READ icon NOTIFY iconChanged)
     Q_PROPERTY(QString description READ description NOTIFY descriptionChanged)
@@ -46,6 +53,9 @@ class PluginManifest : public QObject {
 
     // Other props. The directory is the manifest's identity and never changes.
     Q_PROPERTY(QString dir READ dir CONSTANT)
+
+    // Writable directory owned by this plugin, outside its checkout so reinstalling keeps state
+    Q_PROPERTY(QString dataDir READ dataDir NOTIFY dataDirChanged)
     Q_PROPERTY(QList<caelestia::plugins::EntryPoint> entryPoints READ entryPoints NOTIFY entryPointsChanged)
     Q_PROPERTY(bool valid READ valid NOTIFY validChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
@@ -73,6 +83,7 @@ public:
 
     [[nodiscard]] QString name() const;
     [[nodiscard]] QString version() const;
+    [[nodiscard]] int api() const;
 
     [[nodiscard]] QString icon() const;
     [[nodiscard]] QString description() const;
@@ -85,6 +96,12 @@ public:
     [[nodiscard]] QString logoSource() const;
 
     [[nodiscard]] QString dir() const;
+
+    // `<XDG_DATA>/caelestia/plugin-data/<author>/<name>`, created on demand. Kept out of the
+    // install directory so a reinstall or update does not wipe the plugin's state.
+    [[nodiscard]] QString dataDir() const;
+    [[nodiscard]] Q_INVOKABLE QString ensureDataDir() const;
+
     [[nodiscard]] QList<EntryPoint> entryPoints() const;
     [[nodiscard]] bool valid() const;
     [[nodiscard]] QString error() const;
@@ -139,8 +156,10 @@ public:
 signals:
     void idChanged();
     void moduleUriChanged();
+    void dataDirChanged();
     void nameChanged();
     void versionChanged();
+    void apiChanged();
     void iconChanged();
     void descriptionChanged();
     void authorChanged();
@@ -179,6 +198,7 @@ private:
 
     QString m_name;
     QString m_version;
+    int m_api = kPluginApiVersion;
 
     QString m_icon;
     QString m_description;

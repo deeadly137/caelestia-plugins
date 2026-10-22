@@ -69,8 +69,9 @@ PageBase {
                 const plugin = Array.from(Plugins.plugins).find(p => p.id === pluginId);
 
                 // Installed plugins start disabled, since enabling one runs its QML
-                const message = plugin && !plugin.enabled ? qsTr("%1 - enable it to use it").arg(pluginId) : pluginId;
-                Toaster.toast(qsTr("Plugin installed"), message, "extension");
+                const toastMessage =
+                    plugin && !plugin.enabled ? qsTr("%1 - enable it to use it").arg(pluginId) : pluginId;
+                Toaster.toast(qsTr("Plugin installed"), toastMessage, "extension");
 
                 if (plugin)
                     root.openPlugin(plugin);

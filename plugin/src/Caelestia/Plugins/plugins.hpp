@@ -34,6 +34,7 @@ class Plugins : public QObject, public QQmlParserStatus {
     Q_INTERFACES(QQmlParserStatus)
 
     Q_PROPERTY(QString shellVersion READ shellVersion CONSTANT)
+    Q_PROPERTY(int pluginApi READ pluginApi CONSTANT)
     Q_PROPERTY(QVariantList plugins READ plugins NOTIFY pluginsChanged)
     Q_PROPERTY(QVariantList loadedPlugins READ loadedPlugins NOTIFY loadedPluginsChanged)
     Q_PROPERTY(QVariantList conflictingPlugins READ conflictingPlugins NOTIFY conflictingPluginsChanged)
@@ -65,6 +66,7 @@ public:
     void componentComplete() override;
 
     [[nodiscard]] QString shellVersion() const;
+    [[nodiscard]] int pluginApi() const;
 
     [[nodiscard]] QVariantList plugins() const;
 
@@ -90,6 +92,10 @@ public:
 
     Q_INVOKABLE void setPluginEnabled(const QString& pluginId, bool enabled);
     Q_INVOKABLE void reload();
+
+    // Re-reads one plugin's manifest and forces a fresh generation for it, without touching the
+    // rest. No-op for unknown ids.
+    Q_INVOKABLE void reloadPlugin(const QString& pluginId);
 
     // Clones `repo` into the managed plugin data directory. `path` selects a subdirectory for
     // repositories that contain more than one plugin. `pluginId` is used for the target directory

@@ -244,6 +244,19 @@ QVariantMap EntryPointLoader::injectedProperties(const QObject* object) const {
     QVariantMap properties;
     const auto* const meta = object->metaObject();
 
+    // Manifest `properties` are initial values for properties the entry point actually declares.
+    // Injecting only declared names keeps a typo in a manifest from adding junk dynamic
+    // properties, and lets entry points use plain `required property string name` instead of
+    // digging through entryPoint.properties at runtime.
+    const auto declared = m_entryPoint.properties();
+    for (auto it = declared.cbegin(); it != declared.cend(); ++it) {
+        if (meta->indexOfProperty(it.key().toUtf8().constData()) == -1)
+            continue;
+
+        properties.insert(it.key(), it.value());
+    }
+
+    // Reserved names win over anything a manifest declares with the same key
     if (meta->indexOfProperty("entryPoint") != -1)
         properties.insert(QStringLiteral("entryPoint"), QVariant::fromValue(m_entryPoint));
 

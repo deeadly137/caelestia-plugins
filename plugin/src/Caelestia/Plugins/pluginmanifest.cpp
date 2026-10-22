@@ -9,6 +9,7 @@
 #include <qqmlcomponent.h>
 #include <qqmlengine.h>
 #include <qset.h>
+#include <qstandardpaths.h>
 #include <qtimer.h>
 #include <qurl.h>
 #include <qversionnumber.h>
@@ -125,6 +126,7 @@ void PluginManifest::parse() {
     QString settingsUiSource;
     QList<EntryPoint> entryPoints;
     QString parseError;
+    int api = kPluginApiVersion;
 
     QFile file(m_path);
     QJsonParseError jsonError{};
@@ -152,6 +154,15 @@ void PluginManifest::parse() {
         // so the duplicate id check catches Foo/Bar clashing with foo/bar too.
         id = (author + QStringLiteral("/") + name).toLower();
         version = obj.value(QStringLiteral("version")).toString();
+
+        // Only read `api` when it is actually a number or a numeric string; anything else is a
+        // typo, and rejecting a manifest for that would be worse than treating it as unset.
+        const auto apiValue = obj.value(QStringLiteral("api"));
+        if (apiValue.isDouble())
+            api = apiValue.toInt();
+        else if (apiValue.isString())
+            api = apiValue.toString().toInt();
+
         icon = obj.value(QStringLiteral("icon")).toString();
         description = obj.value(QStringLiteral("description")).toString();
         requirement = obj.value(QStringLiteral("requires")).toString();
@@ -235,6 +246,11 @@ void PluginManifest::parse() {
             parseError = pathError;
         else if (!entryPointError.isEmpty())
             parseError = entryPointError;
+        else if (api < 1)
+            parseError = QStringLiteral("Plugin API %1 is not a valid version").arg(api);
+        else if (api > kPluginApiVersion)
+            parseError =
+                QStringLiteral("Requires plugin API %1 (the shell provides %2)").arg(api).arg(kPluginApiVersion);
         else if (!satisfiesRequirement(requirement, parseVersion(QStringLiteral(CAELESTIA_VERSION))))
             parseError = QStringLiteral("Requires Caelestia %1 (current is %2)")
                              .arg(requirement, QStringLiteral(CAELESTIA_VERSION));
@@ -255,10 +271,12 @@ void PluginManifest::parse() {
         m_id = id;
         emit idChanged();
         emit moduleUriChanged();
+        emit dataDirChanged();
     }
 
     ASSIGN(m_name, name, nameChanged)
     ASSIGN(m_version, version, versionChanged)
+    ASSIGN(m_api, api, apiChanged)
     ASSIGN(m_icon, icon, iconChanged)
     ASSIGN(m_description, description, descriptionChanged)
     ASSIGN(m_author, author, authorChanged)
@@ -306,6 +324,10 @@ QString PluginManifest::version() const {
     return m_version;
 }
 
+int PluginManifest::api() const {
+    return m_api;
+}
+
 QString PluginManifest::icon() const {
     return m_icon;
 }
@@ -344,6 +366,23 @@ QString PluginManifest::logoSource() const {
 
 QString PluginManifest::dir() const {
     return m_dir;
+}
+
+QString PluginManifest::dataDir() const {
+    if (m_id.isEmpty())
+        return {};
+
+    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) +
+           QStringLiteral("/caelestia/plugin-data/") + m_id;
+}
+
+QString PluginManifest::ensureDataDir() const {
+    const auto dir = dataDir();
+    if (dir.isEmpty())
+        return {};
+
+    QDir().mkpath(dir);
+    return dir;
 }
 
 QString PluginManifest::assetUrl(const QString& source) const {
