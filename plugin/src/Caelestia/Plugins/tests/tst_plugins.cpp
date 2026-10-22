@@ -13,6 +13,7 @@
 #include "entrypoint.hpp"
 #include "pluginmanifest.hpp"
 #include "plugins.hpp"
+#include "settingmeta.hpp"
 #include "settingsobject.hpp"
 
 using namespace caelestia::plugins;
@@ -108,6 +109,9 @@ private slots:
 
     void settingsRoundTrip();
     void settingsChangedSignal();
+    void settingsNestedPaths();
+    void settingsValidatesValues();
+    void settingsReportsMetaProblems();
 
     void configKeepsStateOnNonObjectRoot();
     void configKeepsStateOnBrokenJson();
@@ -374,9 +378,109 @@ void TestPlugins::settingsRoundTrip() {
     QCOMPARE(settings.toMap().value(QStringLiteral("sub")).toMap().value(QStringLiteral("x")).toInt(), 42);
     QVERIFY(settings.keys().contains(QStringLiteral("count")));
     QVERIFY(settings.keys().contains(QStringLiteral("enabled")));
-    // Groups are saved through toMap(); keys() only lists the properties the default settings UI
-    // can render as a row
+    // Groups are flattened to dotted leaf paths so the default settings UI can render their rows
+    QVERIFY(settings.keys().contains(QStringLiteral("sub.x")));
     QVERIFY(!settings.keys().contains(QStringLiteral("sub")));
+    QCOMPARE(settings.flatValues().value(QStringLiteral("sub.x")).toInt(), 42);
+    QCOMPARE(settings.values().value(QStringLiteral("sub")).toMap().value(QStringLiteral("x")).toInt(), 42);
+}
+
+void TestPlugins::settingsNestedPaths() {
+    TestSettings settings;
+    settings.sub()->componentComplete();
+    settings.componentComplete();
+
+    auto* const sub = qobject_cast<TestSubSettings*>(settings.sub());
+    QVERIFY(sub);
+
+    const QStringList expectedKeys{ QStringLiteral("count"), QStringLiteral("enabled"), QStringLiteral("sub.x") };
+    QCOMPARE(settings.keys(), expectedKeys);
+    QCOMPARE(settings.value(QStringLiteral("sub.x")).toInt(), 1);
+    QVERIFY(settings.defaultValue(QStringLiteral("sub.x")).isValid());
+    QCOMPARE(settings.defaultValue(QStringLiteral("sub.x")).toInt(), 1);
+    QVERIFY(!settings.isModified(QStringLiteral("sub.x")));
+
+    QVERIFY(settings.setValue(QStringLiteral("sub.x"), 9));
+    QCOMPARE(sub->x(), 9);
+    QVERIFY(settings.isModified(QStringLiteral("sub.x")));
+    QCOMPARE(settings.flatValues().value(QStringLiteral("sub.x")).toInt(), 9);
+
+    QVERIFY(settings.reset(QStringLiteral("sub.x")));
+    QCOMPARE(sub->x(), 1);
+    QVERIFY(!settings.isModified(QStringLiteral("sub.x")));
+
+    QVERIFY(settings.setValue(QStringLiteral("count"), 8));
+    QVERIFY(settings.isModified(QStringLiteral("count")));
+    settings.resetAll();
+    QCOMPARE(settings.count(), 3);
+    QVERIFY(!settings.isModified(QStringLiteral("count")));
+}
+
+void TestPlugins::settingsValidatesValues() {
+    TestSettings settings;
+    settings.sub()->componentComplete();
+    settings.componentComplete();
+
+    auto* const sub = qobject_cast<TestSubSettings*>(settings.sub());
+    QVERIFY(sub);
+
+    SettingMeta countMeta;
+    settings.registerMeta(QStringLiteral("count"), &countMeta);
+    countMeta.setMin(1);
+    countMeta.setMax(5);
+
+    settings.load({ { QStringLiteral("count"), 99 }, { QStringLiteral("enabled"), QStringLiteral("nope") },
+        { QStringLiteral("sub"), QVariantMap{ { QStringLiteral("x"), QStringLiteral("nope") } } } });
+
+    // Out of range values are clamped; wrong types keep the declared default
+    QCOMPARE(settings.count(), 5);
+    QCOMPARE(settings.enabled(), true);
+    QCOMPARE(sub->x(), 1);
+
+    const auto warnings = settings.warnings().join(QLatin1Char('\n'));
+    QVERIFY2(warnings.contains(QStringLiteral("count: 99 is outside [1, 5], using 5")), qPrintable(warnings));
+    QVERIFY2(warnings.contains(QStringLiteral("enabled: expected a boolean")), qPrintable(warnings));
+    QVERIFY2(warnings.contains(QStringLiteral("sub.x: expected an integer")), qPrintable(warnings));
+
+    // A valid load replaces the warnings and accepts negative ranges and a max of zero
+    SettingMeta offsetMeta;
+    settings.registerMeta(QStringLiteral("count"), &offsetMeta);
+    offsetMeta.setMin(-10);
+    offsetMeta.setMax(0);
+
+    settings.load({ { QStringLiteral("count"), -4 } });
+    QCOMPARE(settings.count(), -4);
+    QVERIFY(settings.warnings().isEmpty());
+
+    settings.load({ { QStringLiteral("count"), -20 } });
+    QCOMPARE(settings.count(), -10);
+    QVERIFY(settings.warnings().join(QLatin1Char('\n')).contains(QStringLiteral("using -10")));
+}
+
+void TestPlugins::settingsReportsMetaProblems() {
+    TestSettings settings;
+    settings.sub()->componentComplete();
+    settings.componentComplete();
+
+    SettingMeta meta;
+    settings.registerMeta(QStringLiteral("enabled"), &meta);
+    meta.setProperty("inputType", QVariant::fromValue(static_cast<int>(SettingMeta::Slider)));
+    meta.setMin(10);
+    meta.setMax(1);
+
+    const auto warnings = settings.warnings().join(QLatin1Char('\n'));
+    QVERIFY2(warnings.contains(QStringLiteral("enabled: slider input needs a numeric property")), qPrintable(warnings));
+    QVERIFY2(warnings.contains(QStringLiteral("enabled: min (10) is greater than max (1)")), qPrintable(warnings));
+
+    QVERIFY(meta.hasMin());
+    QVERIFY(meta.hasMax());
+
+    SettingMeta unset;
+    QVERIFY(!unset.hasMin());
+    QVERIFY(!unset.hasMax());
+    unset.setMax(0);
+    QVERIFY(unset.hasMax());
+    QCOMPARE(unset.max(), 0);
 }
 
 void TestPlugins::settingsChangedSignal() {
