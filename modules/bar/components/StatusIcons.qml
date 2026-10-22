@@ -165,17 +165,13 @@ StyledRect {
                     }
                 }
                 DelegateChoice {
+                    // An id with no built-in icon (a stale id from another shell) simply gets an
+                    // empty delegate; plugin status icons resolve by name here.
                     delegate: EntryWrapper {
                         id: pluginStatusWrapper
 
                         EntryPointLoader {
-                            entryPoint: {
-                                const id = pluginStatusWrapper.modelData.id;
-                                const entry = Plugins.entryPoints(EntryPointType.StatusIcon).find(e => e.properties.name === id);
-                                if (!entry)
-                                    console.warn("No plugin status icon found for", id);
-                                return entry;
-                            }
+                            entryPoint: Plugins.entryPoints(EntryPointType.StatusIcon).find(e => e.properties.name === pluginStatusWrapper.modelData.id)
                         }
                     }
                 }
