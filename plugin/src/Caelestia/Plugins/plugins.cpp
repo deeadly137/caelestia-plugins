@@ -250,6 +250,14 @@ void Plugins::loadConfig() {
         return;
     }
 
+    // A syntactically valid document that is not an object (e.g. a bare `[]`) carries none of the
+    // keys we read. Committing it would silently disable every plugin and clear their settings in
+    // memory, and the next save would write that over the real config.
+    if (!doc.isObject()) {
+        qCWarning(lcPlugins) << "Ignoring" << m_configPath << "because its root is not a JSON object";
+        return;
+    }
+
     const auto obj = doc.object();
 
     QStringList enabled;
