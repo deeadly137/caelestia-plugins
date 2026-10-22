@@ -26,6 +26,9 @@ PageBase {
             .sort((a, b) => (a.properties.order ?? 0) - (b.properties.order ?? 0));
     }
 
+    // Number of PluginSubPage slots registered for this page in PageCompRegistry. Keep both in sync.
+    readonly property int maxSubPages: 4
+
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
@@ -120,19 +123,23 @@ PageBase {
                 onClicked: root.nState.openSubPage(3) // Colours page
             }
 
-            IconTextButton {
-                readonly property var extension: root.subpageExtensions[0] ?? null
+            Repeater {
+                model: root.subpageExtensions.slice(0, root.maxSubPages)
 
-                visible: extension !== null
-                icon: extension?.properties.subpageIcon ?? "extension"
-                text: extension?.properties.subpageTitle ?? ""
-                font: Tokens.font.body.large
-                isRound: true
-                shapeMorph: true
-                type: IconTextButton.Tonal
-                horizontalPadding: Tokens.padding.extraLarge
-                verticalPadding: Tokens.padding.medium
-                onClicked: root.nState.openSubPage(4) // Plugin sub-page slot 0
+                IconTextButton {
+                    required property var modelData
+                    required property int index
+
+                    icon: modelData.properties.subpageIcon ?? "extension"
+                    text: modelData.properties.subpageTitle ?? ""
+                    font: Tokens.font.body.large
+                    isRound: true
+                    shapeMorph: true
+                    type: IconTextButton.Tonal
+                    horizontalPadding: Tokens.padding.extraLarge
+                    verticalPadding: Tokens.padding.medium
+                    onClicked: root.nState.openSubPage(4 + index) // Plugin sub-page slot index
+                }
             }
         }
 

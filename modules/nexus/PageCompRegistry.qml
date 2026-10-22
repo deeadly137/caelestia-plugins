@@ -43,6 +43,24 @@ QtObject {
                         slot: 0
                     }
                 }
+                Component {
+                    PluginSubPage {
+                        page: "wallpaper"
+                        slot: 1
+                    }
+                }
+                Component {
+                    PluginSubPage {
+                        page: "wallpaper"
+                        slot: 2
+                    }
+                }
+                Component {
+                    PluginSubPage {
+                        page: "wallpaper"
+                        slot: 3
+                    }
+                }
             }
         },
 
