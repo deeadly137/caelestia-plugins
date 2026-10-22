@@ -167,6 +167,27 @@ PageBase {
         }
 
         SectionHeader {
+            text: Tr.tr("Problems")
+            visible: (root.plugin?.entryPointErrors ?? []).length > 0
+        }
+
+        Repeater {
+            model: root.plugin?.entryPointErrors ?? []
+
+            delegate: StyledText {
+                required property string modelData
+
+                Layout.fillWidth: true
+                Layout.leftMargin: Tokens.padding.small
+                Layout.topMargin: Tokens.spacing.small
+                text: modelData
+                color: Colours.palette.m3error
+                font: Tokens.font.body.small
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+            }
+        }
+
+        SectionHeader {
             text: Tr.tr("Details")
         }
 

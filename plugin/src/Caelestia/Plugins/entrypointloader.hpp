@@ -38,6 +38,7 @@ public:
     Q_ENUM(Status)
 
     explicit EntryPointLoader(QQuickItem* parent = nullptr);
+    ~EntryPointLoader() override;
 
     void componentComplete() override;
 
@@ -72,6 +73,11 @@ private:
     void create();
     void setStatus(Status status);
     void warnComponentErrors() const;
+
+    // Surfaces failures on the plugin so the Nexus detail page can show them, keyed by this
+    // loader instance so several live copies of one entry point each keep their own message.
+    void reportFailure(const QString& message) const;
+    void clearFailure() const;
 
     // Follows the entry point's plugin so a generation bump reloads this loader. Loaders are
     // created lazily, so each one derives its URL when it builds its component and joins

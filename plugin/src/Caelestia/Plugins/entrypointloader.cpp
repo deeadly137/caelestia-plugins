@@ -19,6 +19,10 @@ EntryPointLoader::EntryPointLoader(QQuickItem* parent)
     QObject::connect(this, &QQuickItem::heightChanged, this, &EntryPointLoader::updateSize);
 }
 
+EntryPointLoader::~EntryPointLoader() {
+    clearFailure();
+}
+
 void EntryPointLoader::componentComplete() {
     QQuickItem::componentComplete();
 
@@ -125,6 +129,7 @@ void EntryPointLoader::reload() {
     const auto error = m_entryPoint.error();
     if (!error.isEmpty()) {
         qCWarning(lcEntryPointLoader) << "Refusing to load invalid entry point:" << error;
+        reportFailure(error);
         setStatus(Error);
         return;
     }
@@ -138,6 +143,7 @@ void EntryPointLoader::reload() {
     auto* const context = qmlContext(this);
     if (!context) {
         qCWarning(lcEntryPointLoader) << "Cannot load" << src << "without a QML context";
+        reportFailure(QStringLiteral("Cannot load %1 without a QML context").arg(src));
         setStatus(Error);
         return;
     }
@@ -158,6 +164,8 @@ void EntryPointLoader::reload() {
 }
 
 void EntryPointLoader::clear() {
+    clearFailure();
+
     if (m_object) {
         if (m_item) {
             QObject::disconnect(m_item, nullptr, this, nullptr);
@@ -224,6 +232,7 @@ void EntryPointLoader::create() {
 
     emit itemChanged();
     setStatus(Ready);
+    clearFailure();
     emit loaded();
 }
 
@@ -238,6 +247,18 @@ void EntryPointLoader::setStatus(Status status) {
 void EntryPointLoader::warnComponentErrors() const {
     qCWarning(lcEntryPointLoader, "Failed to load %s: %s", qUtf8Printable(source()),
         qUtf8Printable(m_component->errorString().trimmed()));
+
+    reportFailure(m_component->errorString());
+}
+
+void EntryPointLoader::reportFailure(const QString& message) const {
+    if (m_plugin)
+        m_plugin->setEntryPointError(quintptr(this), message);
+}
+
+void EntryPointLoader::clearFailure() const {
+    if (m_plugin)
+        m_plugin->clearEntryPointError(quintptr(this));
 }
 
 QVariantMap EntryPointLoader::injectedProperties(const QObject* object) const {

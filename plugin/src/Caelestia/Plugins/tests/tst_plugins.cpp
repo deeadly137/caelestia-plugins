@@ -104,6 +104,7 @@ private slots:
     void manifestReadsApiVersion();
     void manifestRejectsNewerApi();
     void dataDirFollowsId();
+    void entryPointErrorsAreTracked();
 
     void settingsRoundTrip();
     void settingsChangedSignal();
@@ -464,6 +465,36 @@ void TestPlugins::reloadPluginBumpsGeneration() {
 
     // Unknown ids warn instead of crashing
     plugins.reloadPlugin(QStringLiteral("nobody/nothing"));
+}
+
+void TestPlugins::entryPointErrorsAreTracked() {
+    const auto dir = writePlugin(QStringLiteral("errors"),
+        R"({"name":"Errors","author":"a","entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    PluginManifest manifest(dir, dir + QStringLiteral("/manifest.json"));
+    QSignalSpy spy(&manifest, &PluginManifest::entryPointErrorsChanged);
+
+    manifest.setEntryPointError(1, QStringLiteral("first failure"));
+    manifest.setEntryPointError(2, QStringLiteral("second failure"));
+    QCOMPARE(spy.count(), 2);
+    QCOMPARE(manifest.entryPointErrors(),
+        (QStringList{ QStringLiteral("first failure"), QStringLiteral("second failure") }));
+
+    // Re-reporting the same message for the same loader is not a change
+    manifest.setEntryPointError(1, QStringLiteral("first failure"));
+    QCOMPARE(spy.count(), 2);
+
+    // Several live copies of one entry point with the same problem collapse into one row
+    manifest.setEntryPointError(3, QStringLiteral("first failure"));
+    QCOMPARE(manifest.entryPointErrors(),
+        (QStringList{ QStringLiteral("first failure"), QStringLiteral("second failure") }));
+
+    manifest.clearEntryPointError(1);
+    manifest.clearEntryPointError(3);
+    QCOMPARE(manifest.entryPointErrors(), (QStringList{ QStringLiteral("second failure") }));
+
+    // A new generation recreates every loader, so old failures must not linger
+    manifest.setGeneration(manifest.generation() + 1);
+    QVERIFY(manifest.entryPointErrors().isEmpty());
 }
 
 void TestPlugins::installRejectsIdMismatch() {

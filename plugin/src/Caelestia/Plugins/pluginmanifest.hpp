@@ -1,6 +1,7 @@
 #pragma once
 
 #include <qbytearray.h>
+#include <qhash.h>
 #include <qlist.h>
 #include <qobject.h>
 #include <qqmlintegration.h>
@@ -65,6 +66,10 @@ class PluginManifest : public QObject {
     // these do not stop it loading, they just tell the author something will not work.
     Q_PROPERTY(QStringList warnings READ warnings NOTIFY warningsChanged)
 
+    // Failures reported by live entry-point loaders (component errors, uninitialised required
+    // properties). One entry per failing loader, deduplicated and cleared on reload.
+    Q_PROPERTY(QStringList entryPointErrors READ entryPointErrors NOTIFY entryPointErrorsChanged)
+
     // The plugin's current hot reload generation, allocated and bumped by Plugins. Everything
     // loaded from a plugin stamps this onto its URL, so a bump makes Qt compile fresh units
     // instead of returning the ones it cached by URL.
@@ -111,6 +116,14 @@ public:
 
     [[nodiscard]] QStringList warnings() const;
     void setWarnings(const QStringList& warnings);
+
+    [[nodiscard]] QStringList entryPointErrors() const;
+
+    // Reports a failure for one loader instance. An empty message clears it. Keyed by loader so a
+    // plugin with several live copies (one desktop widget per screen) does not lose failures.
+    void setEntryPointError(quintptr loaderId, const QString& message);
+    void clearEntryPointError(quintptr loaderId);
+    void clearEntryPointErrors();
 
     [[nodiscard]] int generation() const;
 
@@ -174,6 +187,7 @@ signals:
     void errorChanged();
     void enabledChanged();
     void warningsChanged();
+    void entryPointErrorsChanged();
     void generationChanged();
     void settingsSourceChanged();
     void settingsUiSourceChanged();
@@ -213,6 +227,7 @@ private:
     QList<EntryPoint> m_entryPoints;
     QString m_parseError;
     QStringList m_warnings;
+    QHash<quintptr, QString> m_entryPointErrors;
     QStringList m_conflicts;
     bool m_enabled = false;
     int m_generation = 0;

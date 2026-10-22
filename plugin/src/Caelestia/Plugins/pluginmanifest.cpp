@@ -472,6 +472,43 @@ void PluginManifest::setWarnings(const QStringList& warnings) {
     emit warningsChanged();
 }
 
+QStringList PluginManifest::entryPointErrors() const {
+    auto errors = m_entryPointErrors.values();
+    errors.removeAll(QString());
+    errors.removeDuplicates();
+    errors.sort();
+    return errors;
+}
+
+void PluginManifest::setEntryPointError(quintptr loaderId, const QString& message) {
+    if (message.trimmed().isEmpty()) {
+        clearEntryPointError(loaderId);
+        return;
+    }
+
+    // Component errors carry the whole file/line stack; long enough to be useful, short enough
+    // for the detail page not to become a wall of text.
+    const auto trimmed = message.trimmed().left(600);
+    if (m_entryPointErrors.value(loaderId) == trimmed)
+        return;
+
+    m_entryPointErrors.insert(loaderId, trimmed);
+    emit entryPointErrorsChanged();
+}
+
+void PluginManifest::clearEntryPointError(quintptr loaderId) {
+    if (m_entryPointErrors.remove(loaderId) > 0)
+        emit entryPointErrorsChanged();
+}
+
+void PluginManifest::clearEntryPointErrors() {
+    if (m_entryPointErrors.isEmpty())
+        return;
+
+    m_entryPointErrors.clear();
+    emit entryPointErrorsChanged();
+}
+
 int PluginManifest::generation() const {
     return m_generation;
 }
@@ -481,6 +518,10 @@ void PluginManifest::setGeneration(int generation) {
         return;
 
     m_generation = generation;
+
+    // Every live loader is recreated from the new generation, so failures from the old one are
+    // stale. Anything still broken reports again while it is recreated.
+    clearEntryPointErrors();
 
     // Before the notify, since loaders inject settings while creating their new object and would
     // otherwise pick up the one built from the previous generation's Settings.qml. Build the new
