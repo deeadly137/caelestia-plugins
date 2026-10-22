@@ -12,6 +12,8 @@
 #include <qtimer.h>
 #include <qvariant.h>
 
+#include <optional>
+
 #include "pluginmanifest.hpp"
 #include "pluginmodule.hpp"
 
@@ -94,6 +96,9 @@ public:
     // name and progress reporting.
     Q_INVOKABLE void installPlugin(const QString& repo, const QString& path = {}, const QString& pluginId = {});
 
+    // Aborts an in-flight clone. Safe to call when nothing is being installed.
+    Q_INVOKABLE void cancelInstall();
+
     // Deletes a plugin's directory, but only when it lives in one of the shell-managed plugin
     // roots. Workspace checkouts added through CAELESTIA_PLUGIN_PATH are never removed.
     Q_INVOKABLE bool removePlugin(const QString& pluginId);
@@ -152,8 +157,12 @@ private:
     void updateWatches();
     [[nodiscard]] QStringList searchRoots() const;
 
-    // The config file's current bytes, empty when it is missing or unreadable
-    [[nodiscard]] QByteArray readConfig() const;
+    // The config file's current bytes. Nullopt when the file is missing or cannot be read, which
+    // is different from an empty file and must not be mistaken for one of our own writes.
+    [[nodiscard]] std::optional<QByteArray> readConfig() const;
+
+    // Coalesced so a manifest reparse that moves several fields rebuilds the plugin list once.
+    void notifyMetadataChanged();
 
     // Directories holding a manifest.json, in search order
     [[nodiscard]] QStringList discoverPluginDirs() const;
@@ -185,6 +194,7 @@ private:
     int m_entryPointsRevision = 0;
 
     QProcess* m_installProcess = nullptr;
+    QTimer* m_installTimeout;
     bool m_installing = false;
     QString m_installingPlugin;
     QString m_installError;
@@ -192,6 +202,8 @@ private:
     QString m_installTemp;
     QString m_installTarget;
     QString m_installSubpath;
+    QString m_installExpectedId;
+    bool m_metadataNotifyQueued = false;
 
     // Shared by every plugin. All it has to do is keep climbing, since all it has to produce is a
     // URL the engine has not compiled before, and a shared counter is the one thing that cannot

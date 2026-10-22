@@ -1,5 +1,6 @@
 #include "plugins.hpp"
 
+#include <qcoreapplication.h>
 #include <qdir.h>
 #include <qfile.h>
 #include <qfileinfo.h>
@@ -9,8 +10,11 @@
 #include <qloggingcategory.h>
 #include <qprocess.h>
 #include <qregularexpression.h>
+#include <qsavefile.h>
 #include <qstandardpaths.h>
 #include <qurl.h>
+
+#include <QProcessEnvironment>
 
 #include "pluginurlinterceptor.hpp"
 
@@ -24,12 +28,28 @@ namespace caelestia::plugins {
 
 namespace {
 
+// git can hang forever on a repository that asks for credentials, so prompt for none at all
+constexpr int kInstallTimeoutMs = 120000;
+constexpr int kInstallErrorMaxLength = 300;
+
 QString configDir() {
     return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/caelestia/");
 }
 
 QString pluginDataDir() {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/caelestia/plugins");
+}
+
+// Git's failure output is multi-line and mostly progress noise. The last non-empty line is the
+// part that says what actually went wrong.
+QString summarizeGitOutput(const QString& output) {
+    const auto lines = output.split(u'\n', Qt::SkipEmptyParts);
+    for (auto it = lines.crbegin(); it != lines.crend(); ++it) {
+        const auto line = it->trimmed();
+        if (!line.isEmpty())
+            return line.left(kInstallErrorMaxLength);
+    }
+    return {};
 }
 
 bool pathInside(const QString& path, const QString& root) {
@@ -59,11 +79,44 @@ Plugins::Plugins(QObject* parent)
         rescan();
     });
 
+    m_installTimeout = new QTimer(this);
+    m_installTimeout->setSingleShot(true);
+    m_installTimeout->setInterval(kInstallTimeoutMs);
+    connect(m_installTimeout, &QTimer::timeout, this, [this] {
+        if (!m_installing)
+            return;
+
+        m_installProcess->kill();
+
+        if (!m_installTemp.isEmpty())
+            QDir(m_installTemp).removeRecursively();
+
+        finishInstall(false, tr("Cloning the plugin repository timed out"));
+    });
+
+    // Written to before anything is saved, so a crash cannot leave a truncated config behind
+    if (auto* const app = QCoreApplication::instance()) {
+        connect(app, &QCoreApplication::aboutToQuit, this, [this] {
+            if (m_installing)
+                m_installProcess->kill();
+
+            if (m_saveTimer->isActive()) {
+                m_saveTimer->stop();
+                saveConfig();
+            }
+        });
+    }
+
     connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, &Plugins::onWatchEvent);
     connect(m_watcher, &QFileSystemWatcher::fileChanged, this, &Plugins::onWatchEvent);
 
     m_installProcess = new QProcess(this);
     m_installProcess->setProcessChannelMode(QProcess::MergedChannels);
+
+    // Never let git wait for credentials on a socket the shell cannot answer
+    auto installEnv = QProcessEnvironment::systemEnvironment();
+    installEnv.insert(QStringLiteral("GIT_TERMINAL_PROMPT"), QStringLiteral("0"));
+    m_installProcess->setProcessEnvironment(installEnv);
 
     connect(m_installProcess, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
         if (!m_installing)
@@ -73,7 +126,8 @@ Plugins::Plugins(QObject* parent)
 
         if (exitStatus != QProcess::NormalExit || exitCode != 0) {
             QDir(m_installTemp).removeRecursively();
-            finishInstall(false, output.isEmpty() ? tr("Could not clone the plugin repository") : output);
+            const auto reason = summarizeGitOutput(output);
+            finishInstall(false, reason.isEmpty() ? tr("Could not clone the plugin repository") : reason);
             return;
         }
 
@@ -98,6 +152,25 @@ Plugins::Plugins(QObject* parent)
         } else if (!QDir().rename(temp, target)) {
             QDir(temp).removeRecursively();
             finishInstall(false, tr("Could not move the plugin into %1").arg(target));
+            return;
+        }
+
+        // The enabled list, settings and the Nexus pages are all keyed by the manifest id, so a
+        // repository that declares a different one than the index entry would install a plugin
+        // that can never be found by the id the UI knows. Refuse and say so.
+        const PluginManifest probe(target, target + QStringLiteral("/manifest.json"));
+
+        if (probe.hasParseError() || probe.id().isEmpty()) {
+            QDir(target).removeRecursively();
+            finishInstall(
+                false, probe.error().isEmpty() ? tr("The repository has no valid plugin manifest") : probe.error());
+            return;
+        }
+
+        if (!m_installExpectedId.isEmpty() && probe.id() != m_installExpectedId) {
+            QDir(target).removeRecursively();
+            finishInstall(
+                false, tr("The repository declares %1, but %2 was expected").arg(probe.id(), m_installExpectedId));
             return;
         }
 
@@ -297,18 +370,17 @@ void Plugins::saveConfig() {
     if (json != m_configOnDisk) {
         QDir().mkpath(QFileInfo(m_configPath).absolutePath());
 
-        QFile file(m_configPath);
+        // Written through a temp file and renamed into place, so a crash or full disk leaves the
+        // previous config intact instead of a truncated one.
+        QSaveFile file(m_configPath);
         if (!file.open(QIODevice::WriteOnly)) {
             qCWarning(lcPlugins) << "Failed to write" << m_configPath << file.errorString();
             return;
         }
 
         file.write(json);
-        file.close();
 
-        // Checked after the close, since a buffered write can fail there rather than above, and
-        // recording content that never reached the disk would make every later comparison lie.
-        if (file.error() != QFile::NoError) {
+        if (!file.commit()) {
             qCWarning(lcPlugins) << "Failed to write" << m_configPath << file.errorString();
             return;
         }
@@ -374,6 +446,21 @@ void Plugins::rescan(bool force) {
             connect(manifest, &PluginManifest::entryPointsChanged, this, &Plugins::bumpEntryPointsRevision);
             connect(manifest, &PluginManifest::validChanged, this, &Plugins::bumpEntryPointsRevision);
             connect(manifest, &PluginManifest::enabledChanged, this, &Plugins::bumpEntryPointsRevision);
+
+            // The plugin list is a snapshot in QML, so metadata edits would otherwise not refresh
+            // the Nexus cards until the list's membership changed.
+            for (const auto signal : {
+                     &PluginManifest::nameChanged,
+                     &PluginManifest::versionChanged,
+                     &PluginManifest::iconChanged,
+                     &PluginManifest::descriptionChanged,
+                     &PluginManifest::authorChanged,
+                     &PluginManifest::tagsChanged,
+                     &PluginManifest::bannerChanged,
+                     &PluginManifest::logoChanged,
+                     &PluginManifest::requirementChanged,
+                 })
+                connect(manifest, signal, this, &Plugins::notifyMetadataChanged);
 
             record.manifest = manifest;
         }
@@ -586,6 +673,13 @@ void Plugins::installPlugin(const QString& repo, const QString& path, const QStr
         return;
     }
 
+    if (QStandardPaths::findExecutable(QStringLiteral("git")).isEmpty()) {
+        m_installError = tr("git is not installed");
+        emit installErrorChanged();
+        emit installFinished(pluginId, false, m_installError);
+        return;
+    }
+
     auto targetName = pluginId.trimmed();
     if (targetName.isEmpty())
         targetName = QFileInfo(QUrl(repo).path()).completeBaseName();
@@ -629,9 +723,12 @@ void Plugins::installPlugin(const QString& repo, const QString& path, const QStr
     m_installTemp = temp;
     m_installTarget = target;
     m_installSubpath = subpath;
+    m_installExpectedId = pluginId.trimmed().toLower();
 
     emit installingChanged();
     emit installingPluginChanged();
+
+    m_installTimeout->start();
 
     m_installProcess->setProgram(QStringLiteral("git"));
     m_installProcess->setArguments({
@@ -683,8 +780,22 @@ bool Plugins::removePlugin(const QString& pluginId) {
     return true;
 }
 
+void Plugins::cancelInstall() {
+    if (!m_installing)
+        return;
+
+    m_installProcess->kill();
+
+    if (!m_installTemp.isEmpty())
+        QDir(m_installTemp).removeRecursively();
+
+    finishInstall(false, tr("Installation cancelled"));
+}
+
 void Plugins::finishInstall(bool success, const QString& message) {
     const auto pluginId = m_installingPlugin;
+
+    m_installTimeout->stop();
 
     if (!success) {
         m_installError = message;
@@ -696,6 +807,7 @@ void Plugins::finishInstall(bool success, const QString& message) {
     m_installTemp.clear();
     m_installTarget.clear();
     m_installSubpath.clear();
+    m_installExpectedId.clear();
 
     emit installingChanged();
     emit installingPluginChanged();
@@ -745,10 +857,14 @@ void Plugins::updateWatches() {
             m_watcher->addPath(path);
 }
 
-QByteArray Plugins::readConfig() const {
+std::optional<QByteArray> Plugins::readConfig() const {
     QFile file(m_configPath);
-    if (!file.open(QIODevice::ReadOnly))
-        return {};
+
+    // Missing and unreadable are different from empty: the caller uses this to decide whether a
+    // watcher event was one of our own writes, and an unreadable file is never that.
+    if (!file.exists() || !file.open(QIODevice::ReadOnly))
+        return std::nullopt;
+
     return file.readAll();
 }
 
@@ -756,10 +872,32 @@ void Plugins::onWatchEvent(const QString& path) {
     updateWatches();
 
     // Only ignore writes to the config file, checked by content
-    if (path == m_configPath && readConfig() == m_configOnDisk)
-        return;
+    if (path == m_configPath) {
+        const auto config = readConfig();
+
+        if (config && *config == m_configOnDisk)
+            return;
+
+        // The file is gone and there is no in-memory config to clear
+        if (!config && m_enabled.isEmpty() && m_extraPaths.isEmpty() && m_settings.isEmpty())
+            return;
+    }
 
     m_reloadTimer->start();
+}
+
+void Plugins::notifyMetadataChanged() {
+    if (m_metadataNotifyQueued)
+        return;
+
+    m_metadataNotifyQueued = true;
+
+    // Coalesced: a reparse that moves name, icon and description emits all three before the
+    // list is rebuilt once.
+    QTimer::singleShot(0, this, [this] {
+        m_metadataNotifyQueued = false;
+        emit pluginsChanged();
+    });
 }
 
 } // namespace caelestia::plugins

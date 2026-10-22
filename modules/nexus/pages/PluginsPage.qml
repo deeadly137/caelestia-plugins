@@ -66,8 +66,12 @@ PageBase {
                     return;
                 }
 
-                Toaster.toast(qsTr("Plugin installed"), pluginId, "extension");
                 const plugin = Array.from(Plugins.plugins).find(p => p.id === pluginId);
+
+                // Installed plugins start disabled, since enabling one runs its QML
+                const message = plugin && !plugin.enabled ? qsTr("%1 - enable it to use it").arg(pluginId) : pluginId;
+                Toaster.toast(qsTr("Plugin installed"), message, "extension");
+
                 if (plugin)
                     root.openPlugin(plugin);
             }
@@ -430,10 +434,18 @@ PageBase {
                         isRound: true
                         shapeMorph: true
                         fillWidth: true
-                        text: Plugins.installingPlugin === plugin.modelData.id ? qsTr("Installing...") : qsTr("Install")
-                        disabled: Plugins.installing || !(plugin.modelData.repo ?? "")
+                        readonly property bool installingThis: Plugins.installingPlugin === plugin.modelData.id
+                        text: installingThis ? qsTr("Cancel") : qsTr("Install")
+                        disabled: (Plugins.installing && !installingThis) || !(plugin.modelData.repo ?? "")
                         font: Tokens.font.body.builders.small.width(110).build()
-                        onClicked: Plugins.installPlugin(plugin.modelData.repo, plugin.modelData.path ?? "", plugin.modelData.id)
+                        onClicked: {
+                            if (installingThis) {
+                                Plugins.cancelInstall();
+                                return;
+                            }
+
+                            Plugins.installPlugin(plugin.modelData.repo, plugin.modelData.path ?? "", plugin.modelData.id);
+                        }
                     }
 
                     IconButton {

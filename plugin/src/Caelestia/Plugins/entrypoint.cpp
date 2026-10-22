@@ -1,5 +1,8 @@
 #include "entrypoint.hpp"
 
+#include <qdir.h>
+#include <qurl.h>
+
 namespace caelestia::plugins {
 
 namespace {
@@ -40,9 +43,24 @@ EntryPoint::EntryPoint(const QJsonObject& json, PluginManifest* plugin)
         m_error = typeStr.isEmpty() ? QStringLiteral("Entry point is missing 'type'")
                                     : QStringLiteral("Entry point has unknown type '%1'").arg(typeStr);
 
-    m_source = json.value(QStringLiteral("source")).toString();
-    if (m_source.isEmpty() && m_error.isEmpty())
+    m_source = json.value(QStringLiteral("source")).toString().trimmed();
+
+    if (m_source.isEmpty() && m_error.isEmpty()) {
         m_error = QStringLiteral("Entry point '%1' is missing 'source'").arg(typeStr);
+    } else if (m_error.isEmpty()) {
+        // Entry points are loaded as local QML, so an absolute path or a URL would escape the
+        // plugin directory and could load any other plugin or the shell's own files.
+        if (QDir::isAbsolutePath(m_source) || !QUrl(m_source).scheme().isEmpty()) {
+            m_error = QStringLiteral("Entry point '%1' source must be relative to the plugin directory").arg(typeStr);
+        } else {
+            const auto clean = QDir::cleanPath(m_source);
+            if (clean == QLatin1String("..") || clean.startsWith(QLatin1String("../")))
+                m_error = QStringLiteral("Entry point '%1' source '%2' points outside the plugin directory")
+                              .arg(typeStr, m_source);
+            else
+                m_source = clean;
+        }
+    }
 
     m_properties = json.value(QStringLiteral("properties")).toObject().toVariantMap();
 }
@@ -62,6 +80,10 @@ QString EntryPoint::source() const {
 
 PluginManifest* EntryPoint::plugin() const {
     return m_plugin;
+}
+
+QVariantMap EntryPoint::properties() const {
+    return m_properties;
 }
 
 QString EntryPoint::error() const {

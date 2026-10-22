@@ -22,17 +22,22 @@ QVariantMap SettingsObject::toMap() const {
     const auto* meta = metaObject();
     for (int i = basePropertyOffset(); i < meta->propertyCount(); ++i) {
         const auto prop = meta->property(i);
-        if (!prop.isReadable() || !prop.hasNotifySignal())
+        if (!prop.isReadable())
             continue;
 
         const auto key = QString::fromUtf8(prop.name());
         auto value = prop.read(this);
 
+        // Nested groups are usually declared CONSTANT, so they have no notify signal. They still
+        // have to be written out, or everything under them would be lost on save.
         if (value.canView<SettingsObject*>()) {
             auto* const sub = value.view<SettingsObject*>();
             map.insert(key, sub ? sub->toMap() : QVariantMap());
             continue;
         }
+
+        if (!prop.hasNotifySignal())
+            continue;
 
         if (value.canConvert<QJSValue>())
             value = value.value<QJSValue>().toVariant();

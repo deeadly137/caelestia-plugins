@@ -1,15 +1,19 @@
 #include "pluginmanifest.hpp"
 
 #include <qcryptographichash.h>
+#include <qdir.h>
 #include <qfile.h>
 #include <qjsonarray.h>
 #include <qjsondocument.h>
 #include <qjsonobject.h>
 #include <qqmlcomponent.h>
 #include <qqmlengine.h>
+#include <qset.h>
 #include <qtimer.h>
 #include <qurl.h>
 #include <qversionnumber.h>
+
+#include <optional>
 
 #include "pluginmodule.hpp"
 #include "settingmeta.hpp"
@@ -64,6 +68,34 @@ bool satisfiesRequirement(const QString& requirement, const QVersionNumber& shel
         return cmp == 0;
     // No operator means >=
     return cmp >= 0;
+}
+
+// Paths a plugin points at are relative to its directory. Absolute paths and `..` would let a
+// manifest load code from anywhere on the system, including another plugin or the shell itself.
+std::optional<QString> cleanPluginPath(
+    const QString& value, const QString& field, bool allowAbsoluteAsset, QString* error) {
+    if (value.isEmpty())
+        return value;
+
+    const QUrl url(value);
+
+    if (!allowAbsoluteAsset) {
+        if (QDir::isAbsolutePath(value) || !url.scheme().isEmpty()) {
+            *error = QStringLiteral("%1 '%2' must be a path relative to the plugin directory").arg(field, value);
+            return std::nullopt;
+        }
+    } else if (!url.scheme().isEmpty() || QDir::isAbsolutePath(value)) {
+        // Images may be remote or anywhere on disk, they are not code
+        return value;
+    }
+
+    const auto clean = QDir::cleanPath(value);
+    if (clean == QLatin1String("..") || clean.startsWith(QLatin1String("../"))) {
+        *error = QStringLiteral("%1 '%2' points outside the plugin directory").arg(field, value);
+        return std::nullopt;
+    }
+
+    return clean;
 }
 
 } // namespace
@@ -132,13 +164,22 @@ void PluginManifest::parse() {
 
         // `image` was the original single-artwork field. Keep reading it as a banner so plugins
         // written against the old manifest format still get a card image.
-        banner = obj.value(QStringLiteral("banner")).toString();
-        if (banner.isEmpty())
-            banner = obj.value(QStringLiteral("image")).toString();
-        logo = obj.value(QStringLiteral("logo")).toString();
+        QString pathError;
+        auto bannerPath =
+            cleanPluginPath(obj.value(QStringLiteral("banner")).toString(), QStringLiteral("banner"), true, &pathError);
+        if (bannerPath && bannerPath->isEmpty())
+            bannerPath = cleanPluginPath(
+                obj.value(QStringLiteral("image")).toString(), QStringLiteral("image"), true, &pathError);
+        banner = bannerPath.value_or(QString());
 
-        settingsSource = obj.value(QStringLiteral("settings")).toString();
-        settingsUiSource = obj.value(QStringLiteral("settingsUi")).toString();
+        logo = cleanPluginPath(obj.value(QStringLiteral("logo")).toString(), QStringLiteral("logo"), true, &pathError)
+                   .value_or(QString());
+        settingsSource = cleanPluginPath(
+            obj.value(QStringLiteral("settings")).toString(), QStringLiteral("settings"), false, &pathError)
+                             .value_or(QString());
+        settingsUiSource = cleanPluginPath(
+            obj.value(QStringLiteral("settingsUi")).toString(), QStringLiteral("settingsUi"), false, &pathError)
+                               .value_or(QString());
 
         // Each entry point parses itself; the first that fails invalidates the whole manifest.
         QString entryPointError;
@@ -148,6 +189,34 @@ void PluginManifest::parse() {
             if (entryPointError.isEmpty())
                 entryPointError = entryPoint.error();
             entryPoints.append(entryPoint);
+        }
+
+        // Entry points of the same type are looked up by properties.name, so duplicates would
+        // silently shadow each other at runtime.
+        if (entryPointError.isEmpty()) {
+            QSet<QString> names;
+            for (const auto& entryPoint : std::as_const(entryPoints)) {
+                const auto type = entryPoint.type();
+                if (type != EntryPointType::BarEntry && type != EntryPointType::BarPopout &&
+                    type != EntryPointType::StatusIcon && type != EntryPointType::QuickToggle)
+                    continue;
+
+                const auto entryName = entryPoint.properties().value(QStringLiteral("name")).toString().trimmed();
+                const auto typeName = EntryPointType::toString(type);
+
+                if (entryName.isEmpty()) {
+                    entryPointError = QStringLiteral("%1 entry point is missing properties.name").arg(typeName);
+                    break;
+                }
+
+                const auto key = typeName + QLatin1Char('/') + entryName;
+                if (names.contains(key)) {
+                    entryPointError = QStringLiteral("Duplicate %1 entry point '%2'").arg(typeName, entryName);
+                    break;
+                }
+
+                names.insert(key);
+            }
         }
 
         // Both halves of the id become module URI segments, so they inherit QML's constraint on
@@ -162,6 +231,8 @@ void PluginManifest::parse() {
             parseError = QStringLiteral("Plugin author '%1' may only contain letters, digits or '_', and "
                                         "may not start with a digit")
                              .arg(author);
+        else if (!pathError.isEmpty())
+            parseError = pathError;
         else if (!entryPointError.isEmpty())
             parseError = entryPointError;
         else if (!satisfiesRequirement(requirement, parseVersion(QStringLiteral(CAELESTIA_VERSION))))

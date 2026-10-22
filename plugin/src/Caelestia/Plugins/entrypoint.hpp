@@ -56,6 +56,7 @@ public:
     [[nodiscard]] EntryPointType::Type type() const;
     [[nodiscard]] QString source() const;
     [[nodiscard]] PluginManifest* plugin() const;
+    [[nodiscard]] QVariantMap properties() const;
 
     // Empty when the entry point parsed successfully, otherwise why it is invalid.
     [[nodiscard]] QString error() const;
