@@ -1,6 +1,7 @@
 #include "entrypointloader.hpp"
 
 #include <qloggingcategory.h>
+#include <qmetaobject.h>
 #include <qqmlcontext.h>
 #include <qqmlengine.h>
 #include <qurl.h>
@@ -20,6 +21,9 @@ EntryPointLoader::EntryPointLoader(QQuickItem* parent)
 }
 
 EntryPointLoader::~EntryPointLoader() {
+    // The object is parented here and dies with us, so it never goes through clear(). Let a
+    // service entry point still run its teardown hook on shell shutdown.
+    invokeUnload();
     clearFailure();
 }
 
@@ -165,6 +169,7 @@ void EntryPointLoader::reload() {
 
 void EntryPointLoader::clear() {
     clearFailure();
+    invokeUnload();
 
     if (m_object) {
         if (m_item) {
@@ -254,6 +259,16 @@ void EntryPointLoader::warnComponentErrors() const {
 void EntryPointLoader::reportFailure(const QString& message) const {
     if (m_plugin)
         m_plugin->setEntryPointError(quintptr(this), message);
+}
+
+void EntryPointLoader::invokeUnload() {
+    if (!m_object)
+        return;
+
+    // QML convention for anything that needs to stop timers/sockets before it is destroyed:
+    //     function onUnload(): void { ... }
+    if (m_object->metaObject()->indexOfMethod("onUnload()") != -1)
+        QMetaObject::invokeMethod(m_object, "onUnload", Qt::DirectConnection);
 }
 
 void EntryPointLoader::clearFailure() const {

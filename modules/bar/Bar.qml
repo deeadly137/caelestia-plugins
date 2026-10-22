@@ -5,6 +5,7 @@ import "components/workspaces"
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Caelestia
 import Caelestia.Config
 import Caelestia.Plugins
 import qs.components
@@ -115,7 +116,28 @@ ColumnLayout {
         id: repeater
 
         model: ScriptModel {
-            values: root.Config.bar.entries.values.filter(e => e.enabled)
+            // Configured entries keep their order. Plugin bar entries are appended after them,
+            // sorted by `properties.order` then name, but only when the config does not mention
+            // their id at all — `{ "id": "<name>", "enabled": false }` hides an auto-added entry.
+            values: {
+                CUtils.dependency(Plugins.entryPointsRevision);
+
+                const configured = root.Config.bar.entries.values;
+                const placed = new Set(configured.map(entry => entry.id));
+
+                const extra = Plugins.entryPoints(EntryPointType.BarEntry)
+                    .filter(entry => !placed.has(entry.properties.name ?? ""))
+                    .sort((a, b) => {
+                        const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
+                        return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
+                    })
+                    .map(entry => ({
+                        id: entry.properties.name,
+                        enabled: true
+                    }));
+
+                return configured.filter(entry => entry.enabled).concat(extra);
+            }
         }
 
         DelegateChooser {

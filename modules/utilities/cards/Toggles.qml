@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Bluetooth
+import Caelestia
 import Caelestia.Components
 import Caelestia.Config
 import Caelestia.Plugins
@@ -21,9 +22,13 @@ StyledRect {
     required property BarPopouts.Wrapper popouts
 
     readonly property var quickToggles: {
+        CUtils.dependency(Plugins.entryPointsRevision);
+
+        const configured = Config.utilities.quickToggles.values;
+        const placed = new Set(configured.map(item => item.id));
         const seenIds = new Set();
 
-        return Config.utilities.quickToggles.values.filter(item => {
+        const result = configured.filter(item => {
             if (!item.enabled || seenIds.has(item.id))
                 return false;
 
@@ -35,6 +40,21 @@ StyledRect {
             seenIds.add(item.id);
             return true;
         });
+
+        // Plugin toggles without a config entry are appended after the configured ones, in
+        // `properties.order` order. Listing an id in the config (enabled or not) takes it over.
+        const extra = Plugins.entryPoints(EntryPointType.QuickToggle)
+            .filter(entry => !placed.has(entry.properties.name ?? ""))
+            .sort((a, b) => {
+                const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
+                return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
+            })
+            .map(entry => ({
+                id: entry.properties.name,
+                enabled: true
+            }));
+
+        return result.concat(extra);
     }
     readonly property int splitIndex: Math.ceil(quickToggles.length / 2)
     readonly property bool needExtraRow: quickToggles.length > 6

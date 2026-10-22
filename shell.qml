@@ -13,6 +13,7 @@ import qs.modules.background
 import qs.modules.desktop
 import qs.modules.drawers
 import qs.modules.lock
+import qs.modules.plugins
 import qs.daemons
 
 ShellRoot {
@@ -44,6 +45,7 @@ ShellRoot {
     // Modules
     Background {}
     DesktopWidgets {}
+    PluginServices {}
     Drawers {}
     AreaPicker {}
     Lock {

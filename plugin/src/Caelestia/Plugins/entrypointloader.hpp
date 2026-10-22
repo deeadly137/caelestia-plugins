@@ -79,6 +79,9 @@ private:
     void reportFailure(const QString& message) const;
     void clearFailure() const;
 
+    // Calls the loaded object's optional `onUnload()` hook before it is destroyed.
+    void invokeUnload();
+
     // Follows the entry point's plugin so a generation bump reloads this loader. Loaders are
     // created lazily, so each one derives its URL when it builds its component and joins
     // whichever generation is current then; there is no stored URL to go stale.
