@@ -25,6 +25,24 @@ Item {
 
             required property ShellScreen modelData
 
+            readonly property var inputMasks: {
+                const revision = maskRevision; // Re-evaluate when a loader finishes or a plugin item changes
+                const masks = [];
+                for (let i = 0; i < widgetRepeater.count; i++) {
+                    const loader = widgetRepeater.itemAt(i);
+                    const mask = loader?.item?.inputMask;
+                    if (mask)
+                        masks.push(mask);
+                }
+                return revision >= 0 ? masks : [];
+            }
+
+            property int maskRevision: 0
+
+            function refreshMasks(): void {
+                maskRevision++;
+            }
+
             screen: modelData
             name: "desktop-widgets"
             WlrLayershell.layer: WlrLayer.Bottom
@@ -32,12 +50,20 @@ Item {
             color: "transparent"
             surfaceFormat.opaque: false
 
+            // Bottom widgets also get an input mask when they expose one. Plugins without an
+            // `inputMask` (for example a wallpaper overlay) stay fully click-through.
+            mask: Region {
+                regions: bottomWin.inputMasks
+            }
+
             anchors.top: true
             anchors.bottom: true
             anchors.left: true
             anchors.right: true
 
             Repeater {
+                id: widgetRepeater
+
                 model: root.bottomWidgets
 
                 EntryPointLoader {
@@ -45,6 +71,7 @@ Item {
 
                     anchors.fill: parent
                     entryPoint: modelData
+                    onItemChanged: bottomWin.refreshMasks()
                 }
             }
         }
