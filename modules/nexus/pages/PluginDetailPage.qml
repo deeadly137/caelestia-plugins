@@ -21,25 +21,80 @@ PageBase {
     readonly property var settings: plugin?.settings
     readonly property bool managed: plugin != null && Plugins.isManaged(plugin.id)
 
-    property var values: ({})
-    property var keys: []
+    property var rows: []
+
+    // Entry point load failures and settings validation problems share one list.
+    readonly property var problems: [...(plugin?.entryPointErrors ?? []), ...(settings?.warnings ?? [])]
+    readonly property bool anyModified: rows.some(row => !row.header && row.modified)
+
     property Connections settingsConnections: Connections {
         target: root.settings
 
         function onChanged(): void {
             root.reload();
         }
+
+        function onWarningsChanged(): void {
+            root.reload();
+        }
+    }
+
+    function groupLabel(path: string): string {
+        const leaf = path.slice(path.lastIndexOf(".") + 1);
+        const spaced = leaf.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim();
+
+        return spaced.length > 0 ? spaced[0].toUpperCase() + spaced.slice(1) : leaf;
     }
 
     function reload(): void {
         if (!settings) {
-            values = ({});
-            keys = [];
+            rows = [];
             return;
         }
 
-        values = settings.values();
-        keys = settings.keys();
+        const values = settings.flatValues();
+        const keys = settings.keys();
+        const result = [];
+        let group = "";
+
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const dot = key.indexOf(".");
+            const parent = dot === -1 ? "" : key.slice(0, dot);
+
+            if (parent !== group) {
+                group = parent;
+                if (parent) {
+                    const meta = settings.metaFor(parent);
+                    result.push({
+                        header: true,
+                        key: parent,
+                        label: meta && meta.label ? meta.label : groupLabel(parent),
+                        description: meta && meta.description ? meta.description : ""
+                    });
+                }
+            }
+
+            result.push({
+                header: false,
+                key,
+                meta: settings.metaFor(key),
+                value: values[key],
+                modified: settings.isModified(key)
+            });
+        }
+
+        // Rows around a group header start and end a new card, so each group keeps its own
+        // rounded container instead of running into the next one.
+        for (let i = 0; i < result.length; i++) {
+            if (result[i].header)
+                continue;
+
+            result[i].first = i === 0 || result[i - 1].header;
+            result[i].last = i === result.length - 1 || result[i + 1].header;
+        }
+
+        rows = result;
     }
 
     function setValue(key: string, value: var): void {
@@ -47,7 +102,15 @@ PageBase {
             return;
 
         settings.setValue(key, value);
-        values = settings.values();
+        reload();
+    }
+
+    function resetSetting(key: string): void {
+        if (!settings)
+            return;
+
+        settings.reset(key);
+        reload();
     }
 
     onSettingsChanged: reload()
@@ -136,14 +199,14 @@ PageBase {
 
         SectionHeader {
             text: Tr.tr("Settings")
-            visible: root.keys.length > 0
+            visible: root.rows.length > 0 || root.anyModified
         }
 
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.small
-            visible: root.keys.length === 0
+            visible: root.rows.length === 0
             text: Tr.tr("This plugin has no configurable settings.")
             color: Colours.palette.m3outline
             font: Tokens.font.body.small
@@ -151,28 +214,54 @@ PageBase {
         }
 
         Repeater {
-            model: root.keys
+            model: root.rows
 
-            delegate: PluginSettingRow {
-                required property string modelData
-                required property int index
+            DelegateChooser {
+                role: "header"
 
-                settingKey: modelData
-                meta: root.settings ? root.settings.metaFor(modelData) : null
-                value: root.values[modelData]
-                first: index === 0
-                last: index === root.keys.length - 1
-                onEdited: value => root.setValue(modelData, value)
+                DelegateChoice {
+                    roleValue: true
+                    delegate: SectionHeader {
+                        required property var modelData
+
+                        Layout.topMargin: Tokens.padding.small
+                        text: modelData.label
+                    }
+                }
+                DelegateChoice {
+                    delegate: PluginSettingRow {
+                        required property var modelData
+
+                        settingKey: modelData.key
+                        meta: modelData.meta
+                        value: modelData.value
+                        modified: modelData.modified
+                        first: modelData.first
+                        last: modelData.last
+                        onEdited: value => root.setValue(modelData.key, value)
+                        onReset: root.resetSetting(modelData.key)
+                    }
+                }
+            }
+        }
+
+        TextButton {
+            Layout.alignment: Qt.AlignRight
+            visible: root.anyModified
+            text: Tr.tr("Reset all")
+            onClicked: {
+                root.settings?.resetAll();
+                root.reload();
             }
         }
 
         SectionHeader {
             text: Tr.tr("Problems")
-            visible: (root.plugin?.entryPointErrors ?? []).length > 0
+            visible: root.problems.length > 0
         }
 
         Repeater {
-            model: root.plugin?.entryPointErrors ?? []
+            model: root.problems
 
             delegate: StyledText {
                 required property string modelData
