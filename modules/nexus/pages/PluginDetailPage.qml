@@ -18,8 +18,8 @@ PageBase {
         const list = Array.from(Plugins.plugins);
         return list.find(p => p.id === nState.selectedPluginId) ?? null;
     }
-    readonly property var settings: plugin ? plugin.settings : null
-    readonly property bool managed: plugin ? Plugins.isManaged(plugin.id) : false
+    readonly property var settings: plugin?.settings
+    readonly property bool managed: plugin != null && Plugins.isManaged(plugin.id)
 
     property var values: ({})
     property var keys: []
@@ -76,7 +76,7 @@ PageBase {
 
                 MaterialIcon {
                     anchors.centerIn: parent
-                    text: root.plugin?.icon || "extension"
+                    text: root.plugin?.icon || "extension" // `??` would keep an empty icon, which a missing manifest icon produces
                     color: Colours.palette.m3primary
                     fontStyle: Tokens.font.icon.large
                 }
@@ -98,7 +98,7 @@ PageBase {
                     text: {
                         if (!root.plugin)
                             return "";
-                        const author = root.plugin.author || Tr.tr("Unknown");
+                        const author = root.plugin.author ?? Tr.tr("Unknown");
                         return root.plugin.version ? Tr.tr("By %1 · v%2").arg(author).arg(root.plugin.version) : Tr.tr("By %1").arg(author);
                     }
                     color: Colours.palette.m3outline

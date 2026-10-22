@@ -1,12 +1,13 @@
 pragma Singleton
 
+import Caelestia
 import Caelestia.Plugins
 
 PluginsBase {
     function entryPoints(type: int): list<pluginEntryPoint> {
-        // Read the revision in a way the binding engine must track. A bare expression statement can
-        // be optimized away and would leave desktop widgets and page extensions stale after a
+        // For reactivity: without this, desktop widgets and page extensions stay stale after a
         // plugin is enabled or disabled.
-        return entryPointsRevision >= 0 ? __entryPoints(type) : [];
+        CUtils.dependency(entryPointsRevision);
+        return __entryPoints(type);
     }
 }

@@ -33,16 +33,16 @@ PageBase {
         }))
 
     function installedCard(plugin) {
-        const banner = plugin.bannerSource || "";
-        const logo = plugin.logoSource || "";
+        const banner = plugin.bannerSource ?? "";
+        const logo = plugin.logoSource ?? "";
 
         return {
             id: plugin.id,
-            name: plugin.name || plugin.id,
-            author: plugin.author || qsTr("Unknown"),
-            description: plugin.description || "",
-            icon: plugin.icon || "extension",
-            version: plugin.version || "",
+            name: plugin.name ?? plugin.id,
+            author: plugin.author ?? qsTr("Unknown"),
+            description: plugin.description ?? "",
+            icon: plugin.icon ?? "extension",
+            version: plugin.version ?? "",
             tags: Array.from(plugin.tags ?? []),
             banner: banner,
             logo: logo,
@@ -342,7 +342,7 @@ PageBase {
                 MaterialIcon {
                     anchors.centerIn: parent
                     visible: !logoImage.visible
-                    text: plugin.modelData.icon || "extension"
+                    text: plugin.modelData.icon || "extension" // manifests report "" for a missing icon
                     color: Colours.palette.m3primary
                     fontStyle: Tokens.font.icon.medium
                 }
