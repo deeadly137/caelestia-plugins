@@ -16,7 +16,7 @@ ColumnLayout {
     readonly property var extensions: {
         const entries = Array.from(Plugins.entryPoints(EntryPointType.PageExtension));
         return entries
-            .filter(entry => (entry.properties.page ?? "") === root.page)
+            .filter(entry => (entry.properties.page ?? "") === root.page && (entry.properties.subpage ?? "") === "")
             .sort((a, b) => (a.properties.order ?? 0) - (b.properties.order ?? 0));
     }
 

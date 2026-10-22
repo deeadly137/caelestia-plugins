@@ -37,6 +37,12 @@ QtObject {
                 Component {
                     ColourSelect {}
                 }
+                Component {
+                    PluginSubPage {
+                        page: "wallpaper"
+                        slot: 0
+                    }
+                }
             }
         },
 

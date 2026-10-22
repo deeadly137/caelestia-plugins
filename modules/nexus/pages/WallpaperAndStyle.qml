@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Caelestia.Components
 import Caelestia.Config
 import Caelestia.I18n
+import Caelestia.Plugins
 import qs.components
 import qs.components.controls
 import qs.components.widgets
@@ -15,6 +16,15 @@ PageBase {
     id: root
 
     title: Tr.tr("Wallpaper & style")
+
+    // Page extensions that declare a `subpage` become a button in the row below and open the
+    // matching PluginSubPage registered for this page.
+    readonly property var subpageExtensions: {
+        const entries = Array.from(Plugins.entryPoints(EntryPointType.PageExtension));
+        return entries
+            .filter(entry => (entry.properties.page ?? "") === "wallpaper" && (entry.properties.subpage ?? "") !== "")
+            .sort((a, b) => (a.properties.order ?? 0) - (b.properties.order ?? 0));
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -108,6 +118,21 @@ PageBase {
                 horizontalPadding: Tokens.padding.extraLarge
                 verticalPadding: Tokens.padding.medium
                 onClicked: root.nState.openSubPage(3) // Colours page
+            }
+
+            IconTextButton {
+                readonly property var extension: root.subpageExtensions[0] ?? null
+
+                visible: extension !== null
+                icon: extension?.properties.subpageIcon ?? "extension"
+                text: extension?.properties.subpageTitle ?? ""
+                font: Tokens.font.body.large
+                isRound: true
+                shapeMorph: true
+                type: IconTextButton.Tonal
+                horizontalPadding: Tokens.padding.extraLarge
+                verticalPadding: Tokens.padding.medium
+                onClicked: root.nState.openSubPage(4) // Plugin sub-page slot 0
             }
         }
 
