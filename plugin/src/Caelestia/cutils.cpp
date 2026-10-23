@@ -1,6 +1,7 @@
 #include "cutils.hpp"
 
 #include <qdir.h>
+#include <qfile.h>
 #include <qfileinfo.h>
 #include <qloggingcategory.h>
 #include <qmetaobject.h>
@@ -111,6 +112,20 @@ QString CUtils::toLocalFile(const QUrl& url) {
     }
 
     return url.toLocalFile();
+}
+
+bool CUtils::fileExists(const QString& path) {
+    return !path.isEmpty() && QFileInfo::exists(path);
+}
+
+QString CUtils::readFile(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qCWarning(lcCUtils) << "readFile: failed to open" << path;
+        return {};
+    }
+
+    return QString::fromUtf8(file.readAll());
 }
 
 qreal CUtils::clamp(qreal value, qreal min, qreal max) {

@@ -22,6 +22,13 @@ Searcher {
     property bool previewColourLock
     property bool pendingPreviewClear
 
+    // A plugin can draw the wallpaper outside the shell (for example a Wallpaper Engine process on
+    // the background layer). While a provider is registered, the shell's background window goes
+    // transparent so the external surface shows through. The value is the owning plugin id; a
+    // provider must only clear it when it still owns it.
+    property string externalProvider
+    readonly property bool externalActive: root.externalProvider !== ""
+
     function getCategoryFor(w: FileSystemEntry): string {
         let category = w.parentDir.slice(Paths.wallsdir.length + 1);
         if (category.includes("/"))

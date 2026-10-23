@@ -19,8 +19,14 @@ Variants {
         screen: modelData
         name: "background"
         WlrLayershell.exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: contentItem.Config.background.wallpaperEnabled ? WlrLayer.Background : WlrLayer.Bottom
-        color: contentItem.Config.background.wallpaperEnabled ? "black" : "transparent"
+
+        // With an external provider (e.g. Wallpaper Engine) the shell must not paint a background:
+        // move the (transparent) window above the provider's background surface and keep the clock
+        // and visualiser in front. Same pattern as disabling the wallpaper.
+        readonly property bool nativeWallpaper: contentItem.Config.background.wallpaperEnabled && !Wallpapers.externalActive
+
+        WlrLayershell.layer: win.nativeWallpaper ? WlrLayer.Background : WlrLayer.Bottom
+        color: win.nativeWallpaper ? "black" : "transparent"
         surfaceFormat.opaque: false
 
         anchors.top: true
@@ -46,6 +52,7 @@ Variants {
 
                 anchors.fill: parent
                 active: Config.background.wallpaperEnabled
+                opacity: Wallpapers.externalActive ? 0 : 1
 
                 sourceComponent: Wallpaper {}
             }
