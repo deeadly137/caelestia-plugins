@@ -86,7 +86,7 @@ Item {
         id: live
 
         anchors.fill: parent
-        playing: PersistentState.wallpaperPlaying
+        playing: WallpaperPauser.playing
         animate: false
         layer.enabled: true
 
