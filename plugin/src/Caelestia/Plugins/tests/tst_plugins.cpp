@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "entrypoint.hpp"
+#include "entrypointloader.hpp"
 #include "pluginmanifest.hpp"
 #include "plugins.hpp"
 #include "settingmeta.hpp"
@@ -42,6 +43,16 @@ signals:
 
 private:
     int m_x = 1;
+};
+
+class TestDeclaresProperties : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QString name READ name CONSTANT)
+
+public:
+    using QObject::QObject;
+
+    [[nodiscard]] QString name() const { return QStringLiteral("own"); }
 };
 
 class TestSettings : public SettingsObject {
@@ -106,6 +117,7 @@ private slots:
     void manifestRejectsNewerApi();
     void dataDirFollowsId();
     void entryPointErrorsAreTracked();
+    void injectedPropertiesOnlyUseOwnProperties();
 
     void settingsRoundTrip();
     void settingsChangedSignal();
@@ -599,6 +611,19 @@ void TestPlugins::entryPointErrorsAreTracked() {
     // A new generation recreates every loader, so old failures must not linger
     manifest.setGeneration(manifest.generation() + 1);
     QVERIFY(manifest.entryPointErrors().isEmpty());
+}
+
+void TestPlugins::injectedPropertiesOnlyUseOwnProperties() {
+    TestDeclaresProperties object;
+
+    // Declared by the object itself: manifest properties may be injected.
+    QVERIFY(EntryPointLoader::declaresProperty(&object, QStringLiteral("name")));
+    // Inherited from QObject: `properties.layer`-style host metadata must not overwrite base
+    // properties (the real bug: Item.layer silently swallowed the desktop-widget layer value).
+    QVERIFY(!EntryPointLoader::declaresProperty(&object, QStringLiteral("objectName")));
+    // Not a property at all.
+    QVERIFY(!EntryPointLoader::declaresProperty(&object, QStringLiteral("layer")));
+    QVERIFY(!EntryPointLoader::declaresProperty(nullptr, QStringLiteral("name")));
 }
 
 void TestPlugins::installRejectsIdMismatch() {

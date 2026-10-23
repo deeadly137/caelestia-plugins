@@ -52,6 +52,10 @@ public:
     [[nodiscard]] QObject* item() const;
     [[nodiscard]] Status status() const;
 
+    // Whether `object` declares `name` itself rather than inheriting it from a base type. Used so
+    // manifest `properties` cannot collide with QML base properties (Item.layer, Item.width, ...).
+    [[nodiscard]] static bool declaresProperty(const QObject* object, const QString& name);
+
 signals:
     void entryPointChanged();
     void sourceChanged();

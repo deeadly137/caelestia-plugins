@@ -276,6 +276,21 @@ void EntryPointLoader::clearFailure() const {
         m_plugin->clearEntryPointError(quintptr(this));
 }
 
+bool EntryPointLoader::declaresProperty(const QObject* object, const QString& name) {
+    if (!object)
+        return false;
+
+    const auto* const meta = object->metaObject();
+    const int index = meta->indexOfProperty(name.toUtf8().constData());
+    if (index == -1)
+        return false;
+
+    // A QML object's dynamic metaobject also exposes its base type's properties (Item.layer,
+    // Item.width, ...). Only a property declared by the component itself may receive a manifest
+    // value; `properties.layer` is host metadata for desktop widgets, not Item's layer group.
+    return meta->property(index).enclosingMetaObject() == meta;
+}
+
 QVariantMap EntryPointLoader::injectedProperties(const QObject* object) const {
     QVariantMap properties;
     const auto* const meta = object->metaObject();
@@ -286,17 +301,17 @@ QVariantMap EntryPointLoader::injectedProperties(const QObject* object) const {
     // digging through entryPoint.properties at runtime.
     const auto declared = m_entryPoint.properties();
     for (auto it = declared.cbegin(); it != declared.cend(); ++it) {
-        if (meta->indexOfProperty(it.key().toUtf8().constData()) == -1)
+        if (!declaresProperty(object, it.key()))
             continue;
 
         properties.insert(it.key(), it.value());
     }
 
     // Reserved names win over anything a manifest declares with the same key
-    if (meta->indexOfProperty("entryPoint") != -1)
+    if (declaresProperty(object, QStringLiteral("entryPoint")))
         properties.insert(QStringLiteral("entryPoint"), QVariant::fromValue(m_entryPoint));
 
-    if (meta->indexOfProperty("settings") != -1) {
+    if (declaresProperty(object, QStringLiteral("settings"))) {
         // Built on demand, so this picks up the object rebuilt for the current generation
         SettingsObject* const settings = m_plugin ? m_plugin->settings() : nullptr;
         properties.insert(QStringLiteral("settings"), QVariant::fromValue(settings));
