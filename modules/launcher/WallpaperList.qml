@@ -6,6 +6,7 @@ import Quickshell
 import Caelestia.Config
 import qs.components.controls
 import qs.services
+import qs.utils
 
 PathView {
     id: root
@@ -14,6 +15,7 @@ PathView {
     required property var screenState
     required property var panels
     required property var content
+    required property var contentList
 
     readonly property int itemWidth: Tokens.sizes.launcher.wallpaperWidth * 0.8 + Tokens.padding.medium * 2
 
@@ -23,7 +25,7 @@ PathView {
             return 0;
 
         // Screen width - 4x outer rounding - 2x max side thickness (cause centered)
-        const barMargins = Math.max(Config.border.thickness, panels.bar.implicitWidth);
+        const barMargins = Math.max(Config.border.thickness, panels.bar.isHorizontal ? panels.bar.implicitHeight : panels.bar.implicitWidth);
         let outerMargins = 0;
         if (panels.popouts.hasCurrent && panels.popouts.currentCenter + panels.popouts.nonAnimHeight / 2 > screen.height - content.implicitHeight - Config.border.thickness * 2)
             outerMargins = panels.popouts.nonAnimWidth;
@@ -49,17 +51,49 @@ PathView {
 
         readonly property string search: root.search.text.split(" ").slice(1).join(" ")
 
-        values: Wallpapers.query(search)
-        onValuesChanged: root.currentIndex = search ? 0 : values.findIndex(w => w.path === Wallpapers.actualCurrent)
+        values: {
+            const targetCategory = root.contentList.currentWallpaperTab;
+            const baseDir = Paths.wallsdir;
+            const allWalls = search ? Wallpapers.query(search) : (Wallpapers.grouped[targetCategory] || []);
+
+            if (!search)
+                return allWalls;
+
+            if (targetCategory === "Main")
+                return allWalls.filter(w => w.parentDir === baseDir);
+            if (targetCategory === "Wallpaper Engine")
+                return allWalls.filter(w => w.parentDir.includes("steamapps/workshop/content/431960"));
+            return allWalls.filter(w => {
+                let cat = w.parentDir.slice(baseDir.length + 1);
+                if (cat.includes("/"))
+                    cat = cat.slice(0, cat.indexOf("/"));
+                return cat === targetCategory;
+            });
+        }
+
+        onValuesChanged: {
+            const idx = search ? 0 : values.findIndex(w => w.path === Wallpapers.actualCurrent);
+            root.currentIndex = Math.max(0, idx);
+            if (values.length > 0 && root.currentIndex >= 0 && root.currentIndex < values.length)
+                previewTimer.restart();
+        }
+    }
+
+    Timer {
+        id: previewTimer
+
+        interval: 100
+
+        onTriggered: {
+            if (root.currentItem)
+                Wallpapers.preview((root.currentItem as WallpaperItem).modelData.path);
+        }
     }
 
     Component.onCompleted: currentIndex = Wallpapers.list.findIndex(w => w.path === Wallpapers.actualCurrent)
     Component.onDestruction: Wallpapers.stopPreview()
 
-    onCurrentItemChanged: {
-        if (currentItem)
-            Wallpapers.preview((currentItem as WallpaperItem).modelData.path);
-    }
+    onCurrentItemChanged: previewTimer.restart()
 
     implicitWidth: Math.min(numItems, count) * itemWidth
     pathItemCount: numItems

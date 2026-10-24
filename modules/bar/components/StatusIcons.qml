@@ -18,6 +18,7 @@ StyledRect {
     readonly property alias items: iconColumn
 
     readonly property int spacing: Tokens.spacing.medium / 2
+    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
 
     // Index of the first/last entry that isn't collapsed, for edge margin gating
     readonly property int firstPresent: {
@@ -46,18 +47,24 @@ StyledRect {
     radius: Tokens.rounding.full
 
     clip: true
-    implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: iconColumn.implicitHeight + Tokens.padding.medium * 2
+    implicitWidth: isHorizontal ? (iconColumn.implicitWidth + Tokens.padding.medium * 2) : Tokens.sizes.bar.innerWidth
+    implicitHeight: isHorizontal ? Tokens.sizes.bar.innerWidth : (iconColumn.implicitHeight + Tokens.padding.medium * 2)
 
-    ColumnLayout {
+    GridLayout {
         id: iconColumn
 
         anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: Tokens.padding.medium
+        anchors.right: isHorizontal ? undefined : parent.right
+        anchors.bottom: isHorizontal ? undefined : parent.bottom
+        anchors.verticalCenter: isHorizontal ? parent.verticalCenter : undefined
+        anchors.bottomMargin: isHorizontal ? 0 : Tokens.padding.medium
+        anchors.leftMargin: isHorizontal ? Tokens.padding.medium : 0
 
-        spacing: 0
+        columns: isHorizontal ? -1 : 1
+        rows: isHorizontal ? 1 : -1
+        flow: isHorizontal ? GridLayout.LeftToRight : GridLayout.TopToBottom
+        columnSpacing: 0
+        rowSpacing: 0
 
         Repeater {
             model: ScriptModel {
@@ -186,12 +193,16 @@ StyledRect {
         readonly property bool present: !root.collapsed(modelData)
         property real topGap: present && index !== root.firstPresent ? margin : 0
         property real bottomGap: present && index !== root.lastPresent ? margin : 0
+        property real leftGap: present && index !== root.firstPresent ? margin : 0
+        property real rightGap: present && index !== root.lastPresent ? margin : 0
         default property Item item
         property string name: modelData.id.toLowerCase()
 
-        Layout.topMargin: Math.round(topGap)
-        Layout.bottomMargin: Math.round(bottomGap)
-        Layout.alignment: Qt.AlignHCenter
+        Layout.topMargin: root.isHorizontal ? 0 : Math.round(topGap)
+        Layout.bottomMargin: root.isHorizontal ? 0 : Math.round(bottomGap)
+        Layout.leftMargin: root.isHorizontal ? Math.round(leftGap) : 0
+        Layout.rightMargin: root.isHorizontal ? Math.round(rightGap) : 0
+        Layout.alignment: root.isHorizontal ? Qt.AlignVCenter : Qt.AlignHCenter
 
         implicitWidth: item?.implicitWidth ?? 0
         implicitHeight: item?.implicitHeight ?? 0
@@ -205,6 +216,18 @@ StyledRect {
         }
 
         Behavior on bottomGap {
+            Anim {
+                type: Anim.SlowEffects
+            }
+        }
+
+        Behavior on leftGap {
+            Anim {
+                type: Anim.SlowEffects
+            }
+        }
+
+        Behavior on rightGap {
             Anim {
                 type: Anim.SlowEffects
             }

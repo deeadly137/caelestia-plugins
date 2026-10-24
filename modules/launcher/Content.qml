@@ -107,12 +107,24 @@ Item {
             }
         }
 
-        Component.onCompleted: forceActiveFocus()
+        Component.onCompleted: {
+            if (ShellState.launcherInitialSearch) {
+                text = ShellState.launcherInitialSearch;
+                ShellState.launcherInitialSearch = "";
+            }
+            forceActiveFocus();
+        }
 
         Connections {
             function onLauncherChanged(): void {
-                if (!root.screenState.launcher)
+                if (root.screenState.launcher) {
+                    if (ShellState.launcherInitialSearch) {
+                        search.text = ShellState.launcherInitialSearch;
+                        ShellState.launcherInitialSearch = "";
+                    }
+                } else {
                     search.text = "";
+                }
             }
 
             function onSessionChanged(): void {

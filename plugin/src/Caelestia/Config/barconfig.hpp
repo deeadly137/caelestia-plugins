@@ -109,6 +109,9 @@ class BarConfig : public settings::ObjectNode {
     CONFIG_PROPERTY(bool, persistent, true)
     CONFIG_PROPERTY(bool, showOnHover, true)
     CONFIG_PROPERTY(int, dragThreshold, 20)
+    // "left", "right", "top" or "bottom". A string keeps older configs valid while the Nexus
+    // selector restricts new values.
+    CONFIG_PROPERTY(QString, position, u"left"_s)
     CONFIG_SUBOBJECT(BarScrollActions, scrollActions)
     CONFIG_SUBOBJECT(BarPopouts, popouts)
     CONFIG_SUBOBJECT(BarWorkspaces, workspaces)

@@ -17,6 +17,7 @@ Item {
     id: root
 
     required property ShellScreen screen
+    Config.screen: screen.name
     required property ScreenState screenState
     required property Bar.BarWrapper bar
     required property real borderThickness
@@ -34,9 +35,17 @@ Item {
     readonly property alias toasts: toasts
     readonly property alias sidebar: sidebar
 
+    readonly property real leftMargin: anchors.leftMargin
+    readonly property real rightMargin: anchors.rightMargin
+    readonly property real topMargin: anchors.topMargin
+    readonly property real bottomMargin: anchors.bottomMargin
+
     anchors.fill: parent
     anchors.margins: borderThickness
-    anchors.leftMargin: bar.implicitWidth
+    anchors.leftMargin: Config.bar.position === "left" ? bar.implicitWidth : borderThickness
+    anchors.rightMargin: Config.bar.position === "right" ? bar.implicitWidth : borderThickness
+    anchors.topMargin: Config.bar.position === "top" ? bar.implicitHeight : borderThickness
+    anchors.bottomMargin: Config.bar.position === "bottom" ? bar.implicitHeight : borderThickness
 
     Item {
         id: osdWrapper
@@ -120,6 +129,7 @@ Item {
         id: popoutsWrapper
 
         screen: root.screen
+        bar: root.bar
         borderThickness: root.borderThickness
     }
 

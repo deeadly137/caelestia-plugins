@@ -9,6 +9,10 @@ import qs.services
 Singleton {
     property ShellRoot shellRoot
 
+    // One-shot search text for the next launcher open. Plugins (for example a wallpaper quick
+    // toggle) can set this and then open the launcher; the launcher consumes and clears it.
+    property string launcherInitialSearch: ""
+
     function anySidebarOpen(): bool {
         return states.instances.some(s => s.sidebar);
     }

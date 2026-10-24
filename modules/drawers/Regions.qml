@@ -12,13 +12,20 @@ Region {
     required property Panels panels
     required property var win
 
+    Config.screen: win.screen.name
+
     readonly property real borderThickness: win.contentItem.Config.border.thickness
     readonly property real clampedThickness: win.contentItem.Config.border.clampedThickness
 
-    x: bar.clampedWidth + win.dragMaskPadding
-    y: clampedThickness + win.dragMaskPadding
-    width: win.width - bar.clampedWidth - clampedThickness - win.dragMaskPadding * 2
-    height: win.height - clampedThickness * 2 - win.dragMaskPadding * 2
+    readonly property real barLeftWidth: Config.bar.position === "left" ? bar.clampedThickness : clampedThickness
+    readonly property real barRightWidth: Config.bar.position === "right" ? bar.clampedThickness : clampedThickness
+    readonly property real barTopHeight: Config.bar.position === "top" ? bar.clampedThickness : clampedThickness
+    readonly property real barBottomHeight: Config.bar.position === "bottom" ? bar.clampedThickness : clampedThickness
+
+    x: barLeftWidth + win.dragMaskPadding
+    y: barTopHeight + win.dragMaskPadding
+    width: win.width - barLeftWidth - barRightWidth - win.dragMaskPadding * 2
+    height: win.height - barTopHeight - barBottomHeight - win.dragMaskPadding * 2
     intersection: Intersection.Xor
 
     R {
@@ -37,7 +44,7 @@ Region {
         id: sessionRegion
 
         panel: root.panels.sessionWrapper
-        x: root.win.width - width
+        x: Config.bar.position === "right" ? 0 : root.win.width - sessionRegion.width
         width: panel.width * (1 - root.panels.session.offsetScale) + root.borderThickness + sidebarRegion.width
     }
 
@@ -45,13 +52,15 @@ Region {
         id: sidebarRegion
 
         panel: root.panels.sidebar
-        x: root.win.width - width
+        x: Config.bar.position === "right" ? 0 : root.win.width - sidebarRegion.width
         width: panel.width * (1 - root.panels.sidebar.offsetScale) + root.borderThickness
     }
 
     R {
+        id: osdRegion
+
         panel: root.panels.osdWrapper
-        x: root.win.width - width
+        x: Config.bar.position === "right" ? 0 : root.win.width - osdRegion.width
         width: panel.width * (1 - root.panels.osd.offsetScale) + root.borderThickness + sessionRegion.width
     }
 
@@ -75,8 +84,10 @@ Region {
     component R: Region {
         required property Item panel
 
-        x: panel.x + root.bar.implicitWidth
-        y: panel.y + root.borderThickness
+        Config.screen: win.screen.name
+
+        x: panel.x + root.panels.leftMargin
+        y: panel.y + root.panels.topMargin
         width: panel.width
         height: panel.height
         intersection: Intersection.Subtract

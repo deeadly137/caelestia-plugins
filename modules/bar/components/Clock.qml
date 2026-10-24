@@ -15,21 +15,115 @@ StyledRect {
     readonly property var font: Tokens.font.body.builders.small.scale(1.1)
 
     function fontFor(text: string, metricWidth: int): font {
-        // We don't count seconds for the max width because it changes too often
-        const scale = text === "11" ? 1.15 : Math.min(1.05, Math.max(hourMetrics.width, minMetrics.width) / metricWidth);
-        return root.font.width(scale * 100).letterSpacing(scale).build();
+        // We don't count seconds for the max width because it changes too often.
+        // Metrics can be null while their owners are still incubating — fall back
+        // to the requested width so the binding doesn't error out permanently.
+        const hourW = hourMetrics?.width ?? metricWidth;
+        const minW = minMetrics?.width ?? metricWidth;
+        const scale = text === "11" ? 1.15 : Math.min(1.05, Math.max(hourW, minW) / metricWidth);
+        return Tokens.font.body.builders.small.scale(1.1).width(scale * 100).letterSpacing(scale).build();
     }
 
-    implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: layout.implicitHeight + root.padding * 2
+    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+
+    implicitWidth: isHorizontal ? (horizontalLayout.implicitWidth + root.padding * 2) : Tokens.sizes.bar.innerWidth
+    implicitHeight: isHorizontal ? Tokens.sizes.bar.innerWidth : (verticalLayout.implicitHeight + root.padding * 2)
 
     color: Qt.alpha(Colours.tPalette.m3surfaceContainer, Config.bar.clock.background ? Colours.tPalette.m3surfaceContainer.a : 0)
     radius: Tokens.rounding.full
 
-    ColumnLayout {
-        id: layout
+    RowLayout {
+        id: horizontalLayout
 
         anchors.centerIn: parent
+        visible: isHorizontal
+        spacing: Tokens.spacing.extraSmall
+
+        Loader {
+            asynchronous: true
+            active: Config.bar.clock.showIcon
+            visible: active
+
+            sourceComponent: MaterialIcon {
+                text: "calendar_month"
+                color: root.colour
+            }
+        }
+
+        StyledText {
+            Layout.alignment: Qt.AlignVCenter
+            visible: Config.bar.clock.showDate
+            text: Time.format("ddd")
+            font: Tokens.font.body.small
+            color: root.colour
+        }
+
+        StyledText {
+            Layout.alignment: Qt.AlignVCenter
+            visible: Config.bar.clock.showDate
+            text: Time.format("d")
+            font: Tokens.font.body.small
+            color: root.colour
+        }
+
+        Rectangle {
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: 1
+            Layout.preferredHeight: 16
+            visible: Config.bar.clock.showDate
+
+            color: root.colour
+            opacity: 0.2
+        }
+
+        StyledText {
+            Layout.alignment: Qt.AlignVCenter
+            text: Time.hourStr
+            font: root.font.build()
+            color: root.colour
+        }
+
+        StyledText {
+            Layout.alignment: Qt.AlignVCenter
+            text: ":"
+            font: root.font.build()
+            color: root.colour
+        }
+
+        StyledText {
+            Layout.alignment: Qt.AlignVCenter
+            text: Time.minuteStr
+            font: root.font.build()
+            color: root.colour
+        }
+
+        StyledText {
+            Layout.alignment: Qt.AlignVCenter
+            visible: Config.bar.clock.showSeconds
+            text: ":" + Time.format("ss")
+            font: root.font.build()
+            color: root.colour
+        }
+
+        Loader {
+            Layout.alignment: Qt.AlignVCenter
+            asynchronous: true
+            active: Units.twelveHourClock
+            visible: active
+
+            sourceComponent: StyledText {
+                text: Time.amPmStr.toLowerCase()
+                font: Tokens.font.body.builders.small.scale(0.9).build()
+                color: root.colour
+            }
+        }
+    }
+
+    ColumnLayout {
+        id: verticalLayout
+
+        anchors.centerIn: parent
+        visible: !isHorizontal
         spacing: Tokens.spacing.extraSmall
 
         Loader {
@@ -108,6 +202,13 @@ StyledRect {
             }
         }
 
+        TextMetrics {
+            id: secMetrics
+
+            font: root.font.build()
+            text: Time.format("ss")
+        }
+
         Loader {
             Layout.topMargin: -parent.spacing - 4
             Layout.alignment: Qt.AlignHCenter
@@ -119,13 +220,6 @@ StyledRect {
                 text: Time.format("ss")
                 font: root.fontFor(text, secMetrics.width)
                 color: root.colour
-
-                TextMetrics {
-                    id: secMetrics
-
-                    font: root.font.build()
-                    text: Time.format("ss")
-                }
             }
         }
 

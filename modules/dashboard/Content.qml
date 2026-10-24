@@ -6,6 +6,7 @@ import Quickshell
 import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
+import Caelestia.Plugins
 import qs.components
 import qs.components.filedialog
 
@@ -16,6 +17,8 @@ Item {
     required property FileDialog facePicker
 
     readonly property var dashboardTabs: {
+        CUtils.dependency(Plugins.entryPointsRevision);
+
         const allTabs = [
             {
                 component: dashComponent,
@@ -42,7 +45,23 @@ Item {
                 enabled: Config.dashboard.showWeather
             }
         ];
-        return allTabs.filter(tab => tab.enabled);
+
+        // Plugin dashboard tabs are appended after the built-in ones. `properties.order` sorts
+        // them among themselves; `properties.title` and `properties.icon` drive the tab label.
+        const pluginTabs = Plugins.entryPoints(EntryPointType.DashboardTab)
+            .slice()
+            .sort((a, b) => {
+                const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
+                return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
+            })
+            .map(entry => ({
+                entry: entry,
+                iconName: entry.properties.icon ?? "extension",
+                text: entry.properties.title ?? entry.properties.name ?? Tr.tr("Plugin"),
+                enabled: true
+            }));
+
+        return allTabs.filter(tab => tab.enabled).concat(pluginTabs);
     }
 
     readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
@@ -139,7 +158,11 @@ Item {
 
                         Layout.alignment: Qt.AlignTop
 
-                        sourceComponent: modelData.component
+                        sourceComponent: modelData.component ?? pluginTabComponent
+                        onLoaded: {
+                            if (modelData.entry)
+                                item.entryPoint = modelData.entry;
+                        }
 
                         Component.onCompleted: active = Qt.binding(() => {
                             if (index === view.currentIndex)
@@ -179,6 +202,12 @@ Item {
                 id: weatherComponent
 
                 WeatherTab {}
+            }
+
+            Component {
+                id: pluginTabComponent
+
+                EntryPointLoader {}
             }
 
             Behavior on contentX {
