@@ -11,6 +11,7 @@ CustomMouseArea {
     id: root
 
     required property ShellScreen screen
+    Config.screen: screen.name
     required property BarPopouts.Wrapper popouts
     required property ScreenState screenState
     required property Panels panels

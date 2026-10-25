@@ -11,14 +11,14 @@ Item {
     id: root
 
     required property ShellScreen screen
-    Config.screen: screen.name
     required property ScreenState screenState
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
 
+    Config.screen: screen.name
+
     readonly property bool disabled: Strings.testRegexList(Config.bar.excludedScreens, screen.name)
     readonly property string position: Config.bar.position
-    readonly property bool isHorizontal: position === "top" || position === "bottom"
 
     readonly property int padding: Math.max(Tokens.padding.small, Config.border.thickness)
     readonly property int contentWidth: Tokens.sizes.bar.innerWidth + padding * 2
@@ -26,20 +26,21 @@ Item {
     readonly property bool shouldBeVisible: !fullscreen && !disabled && (Config.bar.persistent || screenState.bar || isHovered)
     property bool isHovered
 
+    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
     readonly property int clampedThickness: Math.max(Config.border.minThickness, isHorizontal ? implicitHeight : implicitWidth)
-    readonly property int clampedWidth: isHorizontal ? width : clampedThickness
-    readonly property int clampedHeight: isHorizontal ? clampedThickness : height
+    readonly property int clampedWidth: isHorizontal ? root.width : clampedThickness
+    readonly property int clampedHeight: isHorizontal ? clampedThickness : root.height
 
     function closeTray(): void {
         (content.item as Bar)?.closeTray();
     }
 
-    function checkPopout(position: real): void {
-        (content.item as Bar)?.checkPopout(position);
+    function checkPopout(pos: real): void {
+        (content.item as Bar)?.checkPopout(pos);
     }
 
-    function handleWheel(position: real, angleDelta: point): void {
-        (content.item as Bar)?.handleWheel(position, angleDelta);
+    function handleWheel(pos: real, angleDelta: point): void {
+        (content.item as Bar)?.handleWheel(pos, angleDelta);
     }
 
     clip: true
@@ -53,7 +54,6 @@ Item {
 
         PropertyChanges {
             target: root
-
             implicitWidth: root.isHorizontal ? 0 : root.contentWidth
             implicitHeight: root.isHorizontal ? root.contentWidth : 0
         }
@@ -87,9 +87,10 @@ Item {
 
         Bar {
             anchors.fill: parent
+            width: root.contentWidth
             screen: root.screen
             screenState: root.screenState
-            popouts: root.popouts // qmllint disable incompatible-type
+            popouts: root.popouts
             fullscreen: root.fullscreen
         }
     }
@@ -118,8 +119,8 @@ Item {
         states: [
             State {
                 name: "left"
-                when: root.position === "left"
                 Config.screen: root.screen.name
+                when: Config.bar.position === "left"
 
                 AnchorChanges {
                     target: content
@@ -131,8 +132,8 @@ Item {
             },
             State {
                 name: "right"
-                when: root.position === "right"
                 Config.screen: root.screen.name
+                when: Config.bar.position === "right"
 
                 AnchorChanges {
                     target: content
@@ -144,8 +145,8 @@ Item {
             },
             State {
                 name: "top"
-                when: root.position === "top"
                 Config.screen: root.screen.name
+                when: Config.bar.position === "top"
 
                 AnchorChanges {
                     target: content
@@ -157,8 +158,8 @@ Item {
             },
             State {
                 name: "bottom"
-                when: root.position === "bottom"
                 Config.screen: root.screen.name
+                when: Config.bar.position === "bottom"
 
                 AnchorChanges {
                     target: content

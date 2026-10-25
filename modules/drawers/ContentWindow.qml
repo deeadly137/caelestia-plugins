@@ -261,6 +261,101 @@ StyledWindow {
         borderThickness: root.borderLayoutThickness
         fullscreen: root.hasFullscreen
 
+        states: [
+            State {
+                name: "left"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "left"
+
+                AnchorChanges {
+                    target: bar
+                    anchors.left: parent.left
+                    anchors.right: undefined
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                }
+
+                PropertyChanges {
+                    target: bar
+                    width: bar.implicitWidth
+                    height: undefined
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
+                    anchors.leftMargin: 0
+                    anchors.rightMargin: 0
+                }
+            },
+            State {
+                name: "right"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "right"
+
+                AnchorChanges {
+                    target: bar
+                    anchors.left: undefined
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                }
+
+                PropertyChanges {
+                    target: bar
+                    width: bar.implicitWidth
+                    height: undefined
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
+                    anchors.leftMargin: 0
+                    anchors.rightMargin: 0
+                }
+            },
+            State {
+                name: "top"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "top"
+
+                AnchorChanges {
+                    target: bar
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: undefined
+                }
+
+                PropertyChanges {
+                    target: bar
+                    width: undefined
+                    height: bar.implicitHeight
+                    anchors.leftMargin: 0
+                    anchors.rightMargin: 0
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
+                }
+            },
+            State {
+                name: "bottom"
+                Config.screen: root.screen.name
+                when: Config.bar.position === "bottom"
+
+                AnchorChanges {
+                    target: bar
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: undefined
+                    anchors.bottom: parent.bottom
+                }
+
+                PropertyChanges {
+                    target: bar
+                    width: undefined
+                    height: bar.implicitHeight
+                    anchors.leftMargin: 0
+                    anchors.rightMargin: 0
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
+                }
+            }
+        ]
+
         Panels {
             id: panels
 
@@ -306,85 +401,6 @@ StyledWindow {
             popouts: panels.popouts
 
             fullscreen: root.hasFullscreen
-
-            states: [
-                State {
-                    name: "left"
-                    when: Config.bar.position === "left"
-                    Config.screen: root.screen.name
-
-                    AnchorChanges {
-                        target: bar
-                        anchors.left: parent.left
-                        anchors.right: undefined
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                    }
-
-                    PropertyChanges {
-                        target: bar
-                        width: bar.contentWidth
-                        height: root.height
-                    }
-                },
-                State {
-                    name: "right"
-                    when: Config.bar.position === "right"
-                    Config.screen: root.screen.name
-
-                    AnchorChanges {
-                        target: bar
-                        anchors.left: undefined
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                    }
-
-                    PropertyChanges {
-                        target: bar
-                        width: bar.contentWidth
-                        height: root.height
-                    }
-                },
-                State {
-                    name: "top"
-                    when: Config.bar.position === "top"
-                    Config.screen: root.screen.name
-
-                    AnchorChanges {
-                        target: bar
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.bottom: undefined
-                    }
-
-                    PropertyChanges {
-                        target: bar
-                        width: root.width
-                        height: bar.contentWidth
-                    }
-                },
-                State {
-                    name: "bottom"
-                    when: Config.bar.position === "bottom"
-                    Config.screen: root.screen.name
-
-                    AnchorChanges {
-                        target: bar
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: undefined
-                        anchors.bottom: parent.bottom
-                    }
-
-                    PropertyChanges {
-                        target: bar
-                        width: root.width
-                        height: bar.contentWidth
-                    }
-                }
-            ]
         }
     }
 
