@@ -12,7 +12,7 @@ import qs.components
 import qs.services
 import qs.modules.bar.popouts as BarPopouts
 
-GridLayout {
+Item {
     id: root
 
     required property ShellScreen screen
@@ -21,28 +21,76 @@ GridLayout {
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
     readonly property int vPadding: Tokens.padding.large
-    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
-    readonly property int spacing: Tokens.spacing.medium
 
-    columns: isHorizontal ? -1 : 1
-    rows: isHorizontal ? 1 : -1
-    columnSpacing: spacing
-    rowSpacing: spacing
-    flow: isHorizontal ? GridLayout.LeftToRight : GridLayout.TopToBottom
+    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+
+    readonly property real spacing: Tokens.spacing.medium
+
+    readonly property list<EntrySection> sections: [startSection, centerSection, endSection]
+
+    // Plugin bar entries are appended to the end section, after the configured ones, in
+    // `properties.order` order. A section that already lists their id takes them over.
+    readonly property var pluginEntries: {
+        CUtils.dependency(Plugins.entryPointsRevision);
+
+        const configured = root.Config.bar.entries.start.values
+            .concat(root.Config.bar.entries.center.values)
+            .concat(root.Config.bar.entries.end.values);
+        const placed = new Set(configured.map(entry => entry.id));
+
+        return Plugins.entryPoints(EntryPointType.BarEntry)
+            .filter(entry => !placed.has(entry.properties.name ?? ""))
+            .sort((a, b) => {
+                const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
+                return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
+            })
+            .map(entry => ({
+                id: entry.properties.name,
+                enabled: true
+            }));
+    }
+
+    function entryAt(pos: real): EntryWrapper {
+        const x = isHorizontal ? pos : width / 2;
+        const y = isHorizontal ? height / 2 : pos;
+
+        for (const section of root.sections) {
+            const local = section.mapFromItem(root, x, y);
+            const wrapper = section.childAt(local.x, local.y) as EntryWrapper;
+            if (wrapper?.visible)
+                return wrapper;
+        }
+        return null;
+    }
 
     function closeTray(): void {
         if (!Config.bar.tray.compact)
             return;
 
-        for (let i = 0; i < repeater.count; i++) {
-            const tray = (repeater.itemAt(i) as EntryWrapper)?.item as Tray;
-            if (tray)
-                tray.expanded = false;
+        for (const section of root.sections) {
+            for (let i = 0; i < section.count; i++) {
+                const wrapper = section.itemAt(i) as EntryWrapper;
+                if (!wrapper)
+                    continue;
+                const tray = wrapper.item as Tray;
+                if (tray)
+                    tray.expanded = false;
+            }
         }
     }
 
-    function checkPopout(position: real): void {
-        const ch = isHorizontal ? childAt(position, height / 2) as EntryWrapper : childAt(width / 2, position) as EntryWrapper;
+    function sectionIdFor(wrapper: EntryWrapper): string {
+        if (wrapper.parent === startSection)
+            return "start";
+        if (wrapper.parent === centerSection)
+            return "center";
+        if (wrapper.parent === endSection)
+            return "end";
+        return "";
+    }
+
+    function checkPopout(pos: real): void {
+        const ch = root.entryAt(pos);
 
         if (ch?.entryId !== "tray")
             closeTray();
@@ -53,26 +101,29 @@ GridLayout {
         }
 
         const id = ch.entryId;
-        const start = isHorizontal ? ch.x : ch.y;
+        const top = isHorizontal ? ch.mapToItem(root, 0, 0).x : ch.mapToItem(root, 0, 0).y;
+        popouts.currentSection = root.sectionIdFor(ch);
 
         if (id === "statusIcons" && Config.bar.popouts.statusIcons) {
             const items = (ch.item as StatusIcons).items;
-            const icon = isHorizontal ? items.childAt(mapToItem(items, position, 0).x, items.height / 2) : items.childAt(items.width / 2, mapToItem(items, 0, position).y);
+            const icon = items.childAt(isHorizontal ? mapToItem(items, pos, 0).x : items.width / 2, isHorizontal ? items.height / 2 : mapToItem(items, 0, pos).y);
             if (icon) {
                 popouts.currentName = icon.name;
-                popouts.currentCenter = Qt.binding(() => isHorizontal ? icon.mapToItem(root, icon.implicitWidth / 2, 0).x : icon.mapToItem(root, 0, icon.implicitHeight / 2).y);
+                popouts.currentCenter = isHorizontal ? icon.mapToItem(null, icon.implicitWidth / 2, 0).x : icon.mapToItem(null, 0, icon.implicitHeight / 2).y;
                 popouts.hasCurrent = true;
+            } else {
+                popouts.hasCurrent = false;
             }
-        } else if (id === "tray" && Config.bar.popouts.tray) {
+        } else if (id === "tray" && Config.bar.popouts.tray && !screenState.sidebar) {
             const tray = ch.item as Tray;
-            const overExpand = isHorizontal ? tray.expandIcon.contains(mapToItem(tray.expandIcon, position, tray.implicitHeight / 2)) : tray.expandIcon.contains(mapToItem(tray.expandIcon, tray.implicitWidth / 2, position));
-            if (!Config.bar.tray.compact || (tray.expanded && !overExpand)) {
-                const offset = position - start - tray.padding * 2 + tray.spacing;
-                const index = isHorizontal ? Math.floor((offset / tray.layout.implicitWidth) * tray.items.count) : Math.floor((offset / tray.layout.implicitHeight) * tray.items.count);
+            const mouseMap = mapToItem(tray.expandIcon, isHorizontal ? pos : tray.implicitWidth / 2, isHorizontal ? tray.implicitHeight / 2 : pos);
+            if (!Config.bar.tray.compact || (tray.expanded && !tray.expandIcon.contains(mouseMap))) {
+                const traySize = isHorizontal ? tray.layout.implicitWidth : tray.layout.implicitHeight;
+                const index = Math.floor(((pos - top - tray.padding * 2 + tray.spacing) / traySize) * tray.items.count);
                 const trayItem = tray.items.itemAt(index);
                 if (trayItem) {
                     popouts.currentName = `traymenu${index}`;
-                    popouts.currentCenter = Qt.binding(() => isHorizontal ? trayItem.mapToItem(root, trayItem.implicitWidth / 2, 0).x : trayItem.mapToItem(root, 0, trayItem.implicitHeight / 2).y);
+                    popouts.currentCenter = isHorizontal ? trayItem.mapToItem(null, trayItem.implicitWidth / 2, 0).x : trayItem.mapToItem(null, 0, trayItem.implicitHeight / 2).y;
                     popouts.hasCurrent = true;
                 } else {
                     popouts.hasCurrent = false;
@@ -81,22 +132,36 @@ GridLayout {
                 popouts.hasCurrent = false;
                 tray.expanded = true;
             }
-        } else if (id === "activeWindow" && Config.bar.popouts.activeWindow && Config.bar.activeWindow.showOnHover) {
-            popouts.currentName = id.toLowerCase();
-            popouts.currentCenter = isHorizontal ? (ch.item as Item).mapToItem(root, (ch.item as Item).implicitWidth / 2, 0).x ?? 0 : (ch.item as Item).mapToItem(root, 0, (ch.item as Item).implicitHeight / 2).y ?? 0;
-            popouts.hasCurrent = true;
+        } else if (id === "activeWindow" && Config.bar.popouts.activeWindow && Config.bar.activeWindow.showOnHover && Hypr.activeToplevel) {
+            const item = ch.item as Item;
+            if (item) {
+                const relPos = pos - top;
+                const inside = isHorizontal ? (relPos >= 0 && relPos <= item.implicitWidth) : (relPos >= 0 && relPos <= item.implicitHeight);
+                if (inside) {
+                    popouts.currentName = id.toLowerCase();
+                    popouts.currentCenter = isHorizontal ? item.mapToItem(null, item.implicitWidth / 2, 0).x : (item.mapToItem(null, 0, item.implicitHeight / 2).y ?? 0);
+                    popouts.hasCurrent = true;
+                } else {
+                    popouts.hasCurrent = false;
+                }
+            } else {
+                popouts.hasCurrent = false;
+            }
         } else {
             const pluginPopout = Plugins.entryPoints(EntryPointType.BarPopout).find(p => p.properties.entry === id);
             if (pluginPopout) {
+                const item = ch.item as Item;
                 popouts.currentName = id.toLowerCase();
-                popouts.currentCenter = isHorizontal ? (ch.item as Item).mapToItem(root, (ch.item as Item).implicitWidth / 2, 0).x ?? 0 : (ch.item as Item).mapToItem(root, 0, (ch.item as Item).implicitHeight / 2).y ?? 0;
+                popouts.currentCenter = isHorizontal ? item.mapToItem(null, item.implicitWidth / 2, 0).x : (item.mapToItem(null, 0, item.implicitHeight / 2).y ?? 0);
                 popouts.hasCurrent = true;
+            } else {
+                popouts.hasCurrent = false;
             }
         }
     }
 
-    function handleWheel(position: real, angleDelta: point): void {
-        const ch = isHorizontal ? childAt(position, height / 2) as EntryWrapper : childAt(width / 2, position) as EntryWrapper;
+    function handleWheel(pos: real, angleDelta: point): void {
+        const ch = root.entryAt(pos);
         if (ch?.entryId === "workspaces" && Config.bar.scrollActions.workspaces) {
             // Workspace scroll
             const mon = Hypr.monitorFor(screen);
@@ -105,14 +170,14 @@ GridLayout {
                 Hypr.dispatch(Hypr.usingLua ? `hl.dsp.workspace.toggle_special("${specialWs.slice(8)}")` : `togglespecialworkspace ${specialWs.slice(8)}`);
             else if (angleDelta.y < 0 || mon.activeWorkspace?.id > 1)
                 Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({ workspace = "r${angleDelta.y > 0 ? "-" : "+"}1" })` : `workspace r${angleDelta.y > 0 ? "-" : "+"}1`);
-        } else if ((isHorizontal ? position < width / 2 : position < height / 2) && Config.bar.scrollActions.volume) {
-            // Volume scroll on the first half
+        } else if ((isHorizontal ? pos < screen.width / 2 : pos < screen.height / 2) && Config.bar.scrollActions.volume) {
+            // Volume scroll on top half
             if (angleDelta.y > 0)
                 Audio.incrementVolume();
             else if (angleDelta.y < 0)
                 Audio.decrementVolume();
         } else if (Config.bar.scrollActions.brightness) {
-            // Brightness scroll on the second half
+            // Brightness scroll on bottom half
             const monitor = Brightness.getMonitorForScreen(screen);
             if (angleDelta.y > 0)
                 monitor.setBrightness(monitor.brightness + GlobalConfig.services.brightnessIncrement);
@@ -121,122 +186,86 @@ GridLayout {
         }
     }
 
-    Repeater {
-        id: repeater
+    EntrySection {
+        id: startSection
 
-        model: ScriptModel {
-            // Configured entries keep their order. Plugin bar entries are appended after them,
-            // sorted by `properties.order` then name, but only when the config does not mention
-            // their id at all — `{ "id": "<name>", "enabled": false }` hides an auto-added entry.
-            values: {
-                CUtils.dependency(Plugins.entryPointsRevision);
-
-                const configured = root.Config.bar.entries.values;
-                const placed = new Set(configured.map(entry => entry.id));
-
-                const extra = Plugins.entryPoints(EntryPointType.BarEntry)
-                    .filter(entry => !placed.has(entry.properties.name ?? ""))
-                    .sort((a, b) => {
-                        const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
-                        return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
-                    })
-                    .map(entry => ({
-                        id: entry.properties.name,
-                        enabled: true
-                    }));
-
-                return configured.filter(entry => entry.enabled).concat(extra);
-            }
-        }
-
-        DelegateChooser {
-            role: "id"
-
-            DelegateChoice {
-                roleValue: "spacer"
-                delegate: EntryWrapper {
-                    Layout.fillWidth: root.isHorizontal
-                    Layout.fillHeight: !root.isHorizontal
-                }
-            }
-            DelegateChoice {
-                roleValue: "logo"
-                delegate: EntryWrapper {
-                    OsIcon {
-                        objectName: "taskbarLogo"
-                    }
-                }
-            }
-            DelegateChoice {
-                roleValue: "workspaces"
-                delegate: EntryWrapper {
-                    Workspaces {
-                        objectName: "taskbarWorkspaces"
-                        screen: root.screen
-                        fullscreen: root.fullscreen
-                    }
-                }
-            }
-            DelegateChoice {
-                roleValue: "activeWindow"
-                delegate: EntryWrapper {
-                    ActiveWindow {
-                        objectName: "taskbarActiveWindow"
-                        bar: root
-                        monitor: Brightness.getMonitorForScreen(root.screen)
-                    }
-                }
-            }
-            DelegateChoice {
-                roleValue: "tray"
-                delegate: EntryWrapper {
-                    Tray {
-                        objectName: "taskbarTray"
-                    }
-                }
-            }
-            DelegateChoice {
-                roleValue: "clock"
-                delegate: EntryWrapper {
-                    Clock {
-                        objectName: "taskbarClock"
-                    }
-                }
-            }
-            DelegateChoice {
-                roleValue: "statusIcons"
-                delegate: EntryWrapper {
-                    StatusIcons {
-                        objectName: "taskbarStatusIcons"
-                    }
-                }
-            }
-            DelegateChoice {
-                roleValue: "power"
-                delegate: EntryWrapper {
-                    Power {
-                        objectName: "taskbarPowerButton"
-                        screenState: root.screenState
-                    }
-                }
-            }
-            DelegateChoice {
-                delegate: EntryWrapper {
-                    id: pluginEntryWrapper
-
-                    EntryPointLoader {
-                        entryPoint: {
-                            const id = pluginEntryWrapper.modelData.id;
-                            const entry = Plugins.entryPoints(EntryPointType.BarEntry).find(e => e.properties.name === id);
-                            if (!entry)
-                                console.warn(logCat, "No plugin entry point found for", id);
-                            return entry;
-                        }
-                    }
-                }
-            }
-        }
+        values: root.Config.bar.entries.start.values
     }
+
+    EntrySection {
+        id: centerSection
+
+        values: root.Config.bar.entries.center.values
+    }
+
+    EntrySection {
+        id: endSection
+
+        values: root.Config.bar.entries.end.values.concat(root.pluginEntries)
+    }
+
+    states: [
+        State {
+            name: "horizontal"
+            when: root.isHorizontal
+
+            AnchorChanges {
+                target: startSection
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            AnchorChanges {
+                target: centerSection
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            AnchorChanges {
+                target: endSection
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            PropertyChanges {
+                target: startSection
+                anchors.leftMargin: root.vPadding
+                anchors.topMargin: 0
+            }
+            PropertyChanges {
+                target: endSection
+                anchors.rightMargin: root.vPadding
+                anchors.bottomMargin: 0
+            }
+        },
+        State {
+            name: "vertical"
+            when: !root.isHorizontal
+
+            AnchorChanges {
+                target: startSection
+                anchors.top: parent.top
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            AnchorChanges {
+                target: centerSection
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            AnchorChanges {
+                target: endSection
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            PropertyChanges {
+                target: startSection
+                anchors.topMargin: root.vPadding
+                anchors.leftMargin: 0
+            }
+            PropertyChanges {
+                target: endSection
+                anchors.bottomMargin: root.vPadding
+                anchors.rightMargin: 0
+            }
+        }
+    ]
 
     LoggingCategory {
         id: logCat
@@ -245,16 +274,129 @@ GridLayout {
         defaultLogLevel: LoggingCategory.Info
     }
 
+    component EntrySection: GridLayout {
+        id: section
+
+        required property var values
+
+        readonly property int count: repeater.count
+
+        function itemAt(index: int): Item {
+            return repeater.itemAt(index);
+        }
+
+        columns: root.isHorizontal ? -1 : 1
+        rows: root.isHorizontal ? 1 : -1
+        flow: root.isHorizontal ? GridLayout.LeftToRight : GridLayout.TopToBottom
+
+        columnSpacing: root.spacing
+        rowSpacing: root.spacing
+
+        Repeater {
+            id: repeater
+
+            model: ScriptModel {
+                values: section.values.filter(e => e.enabled)
+            }
+
+            delegate: EntryChooser {}
+        }
+    }
+
+    component EntryChooser: DelegateChooser {
+        role: "id"
+
+        DelegateChoice {
+            roleValue: "spacer"
+            delegate: EntryWrapper {
+                Layout.fillHeight: !root.isHorizontal && enabled
+                Layout.fillWidth: root.isHorizontal && enabled
+            }
+        }
+        DelegateChoice {
+            roleValue: "logo"
+            delegate: EntryWrapper {
+                OsIcon {
+                    objectName: "taskbarLogo"
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "workspaces"
+            delegate: EntryWrapper {
+                Workspaces {
+                    objectName: "taskbarWorkspaces"
+                    screen: root.screen
+                    fullscreen: root.fullscreen
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "activeWindow"
+            delegate: EntryWrapper {
+                ActiveWindow {
+                    objectName: "taskbarActiveWindow"
+                    bar: root
+                    monitor: Brightness.getMonitorForScreen(root.screen)
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "tray"
+            delegate: EntryWrapper {
+                Tray {
+                    objectName: "taskbarTray"
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "clock"
+            delegate: EntryWrapper {
+                Clock {
+                    objectName: "taskbarClock"
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "statusIcons"
+            delegate: EntryWrapper {
+                StatusIcons {
+                    objectName: "taskbarStatusIcons"
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "power"
+            delegate: EntryWrapper {
+                Power {
+                    objectName: "taskbarPowerButton"
+                    screenState: root.screenState
+                }
+            }
+        }
+        DelegateChoice {
+            delegate: EntryWrapper {
+                id: pluginEntryWrapper
+
+                EntryPointLoader {
+                    entryPoint: {
+                        const id = pluginEntryWrapper.modelData.id;
+                        const entry = Plugins.entryPoints(EntryPointType.BarEntry).find(e => e.properties.name === id);
+                        if (!entry)
+                            console.warn(logCat, "No plugin entry point found for", id);
+                        return entry;
+                    }
+                }
+            }
+        }
+    }
+
     component EntryWrapper: Item {
         required property var modelData
         required property int index
         default property Item item
         readonly property string entryId: modelData.id
 
-        Layout.leftMargin: root.isHorizontal && index === 0 ? root.vPadding : 0
-        Layout.rightMargin: root.isHorizontal && index === repeater.count - 1 ? root.vPadding : 0
-        Layout.topMargin: !root.isHorizontal && index === 0 ? root.vPadding : 0
-        Layout.bottomMargin: !root.isHorizontal && index === repeater.count - 1 ? root.vPadding : 0
         Layout.alignment: root.isHorizontal ? Qt.AlignVCenter : Qt.AlignHCenter
 
         implicitWidth: item?.implicitWidth ?? 0

@@ -301,9 +301,6 @@ StyledWindow {
         BarWrapper {
             id: bar
 
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-
             screen: root.screen
             screenState: root.screenState
             popouts: panels.popouts
@@ -326,8 +323,8 @@ StyledWindow {
 
                     PropertyChanges {
                         target: bar
-                        width: bar.implicitWidth
-                        height: undefined
+                        width: bar.contentWidth
+                        height: root.height
                     }
                 },
                 State {
@@ -345,8 +342,8 @@ StyledWindow {
 
                     PropertyChanges {
                         target: bar
-                        width: bar.implicitWidth
-                        height: undefined
+                        width: bar.contentWidth
+                        height: root.height
                     }
                 },
                 State {
@@ -364,8 +361,8 @@ StyledWindow {
 
                     PropertyChanges {
                         target: bar
-                        width: undefined
-                        height: bar.implicitHeight
+                        width: root.width
+                        height: bar.contentWidth
                     }
                 },
                 State {
@@ -383,8 +380,8 @@ StyledWindow {
 
                     PropertyChanges {
                         target: bar
-                        width: undefined
-                        height: bar.implicitHeight
+                        width: root.width
+                        height: bar.contentWidth
                     }
                 }
             ]

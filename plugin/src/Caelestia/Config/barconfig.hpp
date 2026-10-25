@@ -103,6 +103,29 @@ class BarClock : public settings::ObjectNode {
     CONFIG_PROPERTY(bool, showSeconds, false)
 };
 
+// Bar entries split into three anchored sections. `start` hugs the top/left edge,
+// `center` sits at the monitor centre and `end` hugs the bottom/right edge.
+class BarSections : public settings::ObjectNode {
+    CONFIG_NODE(BarSections, settings::ObjectNode)
+
+    CONFIG_LIST(EntryList, start,
+        DEFAULT_ARG({
+            LIST_ENTRY(logo, true),
+            LIST_ENTRY(workspaces, true),
+        }))
+    CONFIG_LIST(EntryList, center,
+        DEFAULT_ARG({
+            LIST_ENTRY(activeWindow, true),
+        }))
+    CONFIG_LIST(EntryList, end,
+        DEFAULT_ARG({
+            LIST_ENTRY(tray, true),
+            LIST_ENTRY(clock, true),
+            LIST_ENTRY(statusIcons, true),
+            LIST_ENTRY(power, true),
+        }))
+};
+
 class BarConfig : public settings::ObjectNode {
     CONFIG_NODE(BarConfig, settings::ObjectNode)
 
@@ -128,18 +151,7 @@ class BarConfig : public settings::ObjectNode {
             LIST_ENTRY(bluetooth, true),
             LIST_ENTRY(battery, true),
         }))
-    CONFIG_LIST(EntryList, entries,
-        DEFAULT_ARG({
-            LIST_ENTRY(logo, true),
-            LIST_ENTRY(workspaces, true),
-            LIST_ENTRY(spacer, true),
-            LIST_ENTRY(activeWindow, true),
-            LIST_ENTRY(spacer, true),
-            LIST_ENTRY(tray, true),
-            LIST_ENTRY(clock, true),
-            LIST_ENTRY(statusIcons, true),
-            LIST_ENTRY(power, true),
-        }))
+    CONFIG_SUBOBJECT(BarSections, entries)
     CONFIG_PROPERTY(QStringList, excludedScreens, {})
 };
 
