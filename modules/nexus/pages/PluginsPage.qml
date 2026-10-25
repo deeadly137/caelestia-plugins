@@ -38,7 +38,7 @@ PageBase {
 
         return {
             id: plugin.id,
-            name: plugin.name ?? plugin.id,
+            name: plugin.displayName ?? plugin.name ?? plugin.id,
             author: plugin.author ?? qsTr("Unknown"),
             description: plugin.description ?? "",
             icon: plugin.icon ?? "extension",

@@ -33,6 +33,8 @@ class PluginManifest : public QObject {
 
     // Required metadata
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
+    // Human-readable label shown in the UI; defaults to `name` when the manifest omits it
+    Q_PROPERTY(QString displayName READ displayName NOTIFY displayNameChanged)
     Q_PROPERTY(QString version READ version NOTIFY versionChanged)
 
     // The plugin API version the manifest was written against, 1 when it does not say
@@ -87,6 +89,7 @@ public:
     [[nodiscard]] QString moduleUri() const;
 
     [[nodiscard]] QString name() const;
+    [[nodiscard]] QString displayName() const;
     [[nodiscard]] QString version() const;
     [[nodiscard]] int api() const;
 
@@ -171,6 +174,7 @@ signals:
     void moduleUriChanged();
     void dataDirChanged();
     void nameChanged();
+    void displayNameChanged();
     void versionChanged();
     void apiChanged();
     void iconChanged();
@@ -211,6 +215,7 @@ private:
     QString m_id;
 
     QString m_name;
+    QString m_displayName;
     QString m_version;
     int m_api = kPluginApiVersion;
 

@@ -116,7 +116,7 @@ PageBase {
     onSettingsChanged: reload()
     Component.onCompleted: reload()
 
-    title: plugin ? plugin.name : Tr.tr("Plugin")
+    title: plugin ? (plugin.displayName || plugin.name) : Tr.tr("Plugin")
     isSubPage: true
 
     ColumnLayout {
@@ -151,7 +151,7 @@ PageBase {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: root.plugin?.name ?? ""
+                    text: root.plugin?.displayName || root.plugin?.name || ""
                     font: Tokens.font.title.medium
                     wrapMode: Text.WordWrap
                 }
@@ -310,7 +310,7 @@ PageBase {
             rootParent: root
             icon: "delete_forever"
             label: Tr.tr("Remove plugin")
-            header: Tr.tr("Remove %1?").arg(root.plugin?.name ?? "")
+            header: Tr.tr("Remove %1?").arg(root.plugin?.displayName || root.plugin?.name || "")
             acceptLabel: Tr.tr("Remove")
             separateContent: true
 

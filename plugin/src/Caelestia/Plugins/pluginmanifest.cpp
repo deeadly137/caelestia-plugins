@@ -114,6 +114,7 @@ void PluginManifest::parse() {
 
     QString id;
     QString name;
+    QString displayName;
     QString version;
     QString icon;
     QString description;
@@ -153,6 +154,9 @@ void PluginManifest::parse() {
         // Canonical id is author/name. Lowercased here rather than when deriving the module URI,
         // so the duplicate id check catches Foo/Bar clashing with foo/bar too.
         id = (author + QStringLiteral("/") + name).toLower();
+        displayName = obj.value(QStringLiteral("displayName")).toString().trimmed();
+        if (displayName.isEmpty())
+            displayName = name;
         version = obj.value(QStringLiteral("version")).toString();
 
         // Only read `api` when it is actually a number or a numeric string; anything else is a
@@ -275,6 +279,7 @@ void PluginManifest::parse() {
     }
 
     ASSIGN(m_name, name, nameChanged)
+    ASSIGN(m_displayName, displayName, displayNameChanged)
     ASSIGN(m_version, version, versionChanged)
     ASSIGN(m_api, api, apiChanged)
     ASSIGN(m_icon, icon, iconChanged)
@@ -318,6 +323,10 @@ QString PluginManifest::moduleUri() const {
 
 QString PluginManifest::name() const {
     return m_name;
+}
+
+QString PluginManifest::displayName() const {
+    return m_displayName;
 }
 
 QString PluginManifest::version() const {

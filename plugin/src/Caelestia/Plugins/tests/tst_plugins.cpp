@@ -223,6 +223,7 @@ void TestPlugins::manifestParsesMetadata() {
     const auto dir = writePlugin(QStringLiteral("meta"),
         R"({
             "name": "Widgets",
+            "displayName": "Widgets Deluxe",
             "author": "SomeAuthor",
             "version": "1.2.3",
             "icon": "widgets",
@@ -238,6 +239,7 @@ void TestPlugins::manifestParsesMetadata() {
     QVERIFY2(manifest.valid(), qUtf8Printable(manifest.error()));
     QCOMPARE(manifest.id(), QStringLiteral("someauthor/widgets"));
     QCOMPARE(manifest.moduleUri(), QStringLiteral("someauthor.widgets"));
+    QCOMPARE(manifest.displayName(), QStringLiteral("Widgets Deluxe"));
     QCOMPARE(manifest.version(), QStringLiteral("1.2.3"));
     QCOMPARE(manifest.tags(), (QStringList{ QStringLiteral("a"), QStringLiteral("b") }));
     QCOMPARE(manifest.banner(), QStringLiteral("banner.png"));
@@ -253,6 +255,7 @@ void TestPlugins::manifestAcceptsImageAsBanner() {
 
     QVERIFY2(manifest.valid(), qUtf8Printable(manifest.error()));
     QCOMPARE(manifest.banner(), QStringLiteral("preview.png"));
+    QCOMPARE(manifest.displayName(), QStringLiteral("Legacy"));
 }
 
 void TestPlugins::manifestRejectsMissingName() {

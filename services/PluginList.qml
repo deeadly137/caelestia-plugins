@@ -213,8 +213,8 @@ Singleton {
             entry.id = actualId;
         }
 
-        if (manifest.name)
-            entry.name = String(manifest.name);
+        if (manifest.displayName || manifest.name)
+            entry.name = String(manifest.displayName || manifest.name);
         if (manifest.author)
             entry.author = String(manifest.author);
         if (manifest.version)
