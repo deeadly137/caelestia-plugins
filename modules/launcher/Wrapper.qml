@@ -31,8 +31,10 @@ Item {
             implicitHeight = implicitHeight; // Break binding during close anim
     }
 
+    clip: Config.bar.position === "bottom"
     visible: offsetScale < 1
-    anchors.bottomMargin: (-implicitHeight - 5) * offsetScale
+    anchors.bottomMargin: (Config.bar.position === "bottom" ? 0 : -implicitHeight - 5) * offsetScale
+    height: Config.bar.position === "bottom" ? implicitHeight * (1 - offsetScale) : implicitHeight
     implicitHeight: content.implicitHeight
     implicitWidth: content.implicitWidth || 630 // Hard coded fallback for first open
     opacity: 1 - offsetScale

@@ -66,13 +66,13 @@ Region {
 
     R {
         panel: root.panels.notifications
-        y: 0
-        height: panel.height + root.borderThickness
+        y: Config.bar.position === "bottom" ? (panel.y + root.panels.topMargin) : 0
+        height: Config.bar.position === "bottom" ? (root.win.height - y) : (panel.height + panel.y + root.panels.topMargin)
     }
 
     R {
         panel: root.panels.utilities
-        y: root.win.height - height
+        y: Config.bar.position === "bottom" ? 0 : root.win.height - height
         height: panel.height * (1 - root.panels.utilities.offsetScale) + root.borderThickness
     }
 

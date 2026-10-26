@@ -41,22 +41,113 @@ Item {
     readonly property real bottomMargin: anchors.bottomMargin
 
     anchors.fill: parent
-    anchors.margins: borderThickness
     anchors.leftMargin: Config.bar.position === "left" ? bar.implicitWidth : borderThickness
     anchors.rightMargin: Config.bar.position === "right" ? bar.implicitWidth : borderThickness
     anchors.topMargin: Config.bar.position === "top" ? bar.implicitHeight : borderThickness
     anchors.bottomMargin: Config.bar.position === "bottom" ? bar.implicitHeight : borderThickness
+
+    states: [
+        State {
+            name: "right"
+            Config.screen: root.screen.name
+            when: Config.bar.position === "right"
+
+            AnchorChanges {
+                target: osdWrapper
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+            AnchorChanges {
+                target: osd
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+            AnchorChanges {
+                target: notifications
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+            AnchorChanges {
+                target: sessionWrapper
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+            AnchorChanges {
+                target: session
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+            AnchorChanges {
+                target: utilities
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+            AnchorChanges {
+                target: toasts
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+            PropertyChanges {
+                target: toasts
+                anchors.leftMargin: Tokens.padding.medium + (sidebar.visible ? sidebar.width * (1 - sidebar.offsetScale) : 0)
+                anchors.rightMargin: 0
+            }
+            AnchorChanges {
+                target: sidebar
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+        },
+
+        State {
+            name: "bottom"
+            Config.screen: root.screen.name
+            when: Config.bar.position === "bottom"
+
+            AnchorChanges {
+                target: notifications
+                anchors.top: undefined
+                anchors.bottom: parent.bottom
+            }
+            AnchorChanges {
+                target: utilities
+                anchors.bottom: undefined
+                anchors.top: parent.top
+            }
+            AnchorChanges {
+                target: toasts
+                anchors.left: parent.left
+                anchors.right: undefined
+            }
+            PropertyChanges {
+                target: toasts
+                anchors.leftMargin: Tokens.padding.medium + (sidebar.visible ? sidebar.width * (1 - sidebar.offsetScale) : 0)
+                anchors.rightMargin: 0
+            }
+            AnchorChanges {
+                target: sidebar
+                anchors.top: utilities.bottom
+                anchors.bottom: notifications.top
+            }
+            PropertyChanges {
+                target: sidebar
+                anchors.topMargin: -4
+            }
+        }
+    ]
 
     Item {
         id: osdWrapper
 
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.rightMargin: sessionWrapper.anchors.rightMargin + session.width * (1 - session.offsetScale)
+        anchors.leftMargin: Config.bar.position === "right" ? sidebar.width * (1 - sidebar.offsetScale) + session.width * (1 - session.offsetScale) : 0
+        anchors.rightMargin: Config.bar.position !== "right" ? sidebar.width * (1 - sidebar.offsetScale) + session.width * (1 - session.offsetScale) : 0
         clip: sidebar.visible || session.visible
 
         implicitWidth: osd.implicitWidth * (1 - osd.offsetScale)
         implicitHeight: osd.implicitHeight
+        visible: osd.offsetScale < 1
 
         Osd.Wrapper {
             id: osd
@@ -73,6 +164,8 @@ Item {
     Notifications.Wrapper {
         id: notifications
 
+        property bool shouldPush: popoutsWrapper.offsetScale < 1 && !sidebar.visible && popoutsWrapper.content.currentSection === "end"
+
         screenState: root.screenState
         sidebarPanel: sidebar
         osdPanel: osdWrapper
@@ -81,6 +174,8 @@ Item {
 
         anchors.top: parent.top
         anchors.right: parent.right
+        anchors.topMargin: (Config.bar.position === "top" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
+        anchors.bottomMargin: (Config.bar.position === "bottom" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
     }
 
     Item {
@@ -88,11 +183,13 @@ Item {
 
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.rightMargin: sidebar.width * (1 - sidebar.offsetScale)
+        anchors.leftMargin: Config.bar.position === "right" ? sidebar.width * (1 - sidebar.offsetScale) : 0
+        anchors.rightMargin: Config.bar.position !== "right" ? sidebar.width * (1 - sidebar.offsetScale) : 0
         clip: sidebar.visible
 
         implicitWidth: session.implicitWidth * (1 - session.offsetScale)
         implicitHeight: session.implicitHeight
+        visible: session.offsetScale < 1
 
         Session.Wrapper {
             id: session
@@ -148,8 +245,9 @@ Item {
         id: toasts
 
         anchors.bottom: sidebar.visible ? parent.bottom : utilities.top
-        anchors.right: sidebar.left
+        anchors.right: parent.right
         anchors.margins: Tokens.padding.medium
+        anchors.rightMargin: Tokens.padding.medium + (sidebar.visible ? sidebar.width * (1 - sidebar.offsetScale) : 0)
     }
 
     Sidebar.Wrapper {
@@ -160,6 +258,9 @@ Item {
         anchors.top: notifications.bottom
         anchors.bottom: utilities.top
         anchors.right: parent.right
-        anchors.topMargin: -notifications.anchors.topMargin
+        property bool shouldPush: popoutsWrapper.offsetScale < 1 && popoutsWrapper.content.currentSection === "end"
+
+        anchors.topMargin: (Config.bar.position === "top" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : -notifications.anchors.topMargin
+        anchors.bottomMargin: (Config.bar.position === "bottom" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
     }
 }

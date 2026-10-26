@@ -14,8 +14,10 @@ Item {
     readonly property bool shouldBeActive: screenState.sidebar && Config.sidebar.enabled
     property real offsetScale: shouldBeActive ? 0 : 1
 
-    visible: offsetScale < 1
-    anchors.rightMargin: (-implicitWidth - 5) * offsetScale
+    visible: offsetScale < 0.999
+    property real slideAmount: (-implicitWidth - Config.border.thickness - Tokens.spacing.medium) * offsetScale
+    anchors.leftMargin: slideAmount
+    anchors.rightMargin: slideAmount
     implicitWidth: Tokens.sizes.sidebar.width
     opacity: 1 - offsetScale
 

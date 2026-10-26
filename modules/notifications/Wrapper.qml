@@ -11,14 +11,15 @@ Item {
     property alias utilitiesPanel: content.utilitiesPanel
 
     visible: height > 0
-    anchors.topMargin: -5
+    readonly property real baseTopMargin: -5
+    anchors.topMargin: baseTopMargin
     implicitWidth: Math.max(sidebarPanel.width, content.implicitWidth)
     implicitHeight: content.implicitHeight
 
     Content {
         id: content
 
-        anchors.topMargin: -root.anchors.topMargin
+        anchors.topMargin: -root.baseTopMargin
         screenState: root.screenState
     }
 }

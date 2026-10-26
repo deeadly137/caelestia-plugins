@@ -23,7 +23,8 @@ Item {
 
     anchors.top: parent.top
     anchors.bottom: parent.bottom
-    anchors.right: parent.right
+    anchors.left: Config.bar.position === "right" ? parent.left : undefined
+    anchors.right: Config.bar.position !== "right" ? parent.right : undefined
 
     implicitWidth: Tokens.sizes.notifs.width
     implicitHeight: {
