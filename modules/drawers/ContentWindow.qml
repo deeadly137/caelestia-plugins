@@ -195,8 +195,8 @@ StyledWindow {
 
             panel: panels.sessionWrapper
             deformAmount: 0.2
-            x: panels.sessionWrapper.x + panels.session.x + panels.leftMargin
-            implicitWidth: panels.session.width
+            x: panels.sessionWrapper.x + panels.leftMargin
+            implicitWidth: panels.sessionWrapper.width
         }
 
         PanelBg {
@@ -214,8 +214,8 @@ StyledWindow {
 
             panel: panels.osdWrapper
             deformAmount: 0.25
-            x: panels.osdWrapper.x + panels.osd.x + panels.leftMargin
-            implicitWidth: panels.osd.width
+            x: panels.osdWrapper.x + panels.leftMargin
+            implicitWidth: panels.osdWrapper.width
         }
 
         PanelBg {
@@ -431,8 +431,10 @@ StyledWindow {
     component PanelBg: BlobRect {
         required property Item panel
         property real deformAmount: 0.15
+        Config.screen: root.screen.name
 
-        group: blobGroup
+        visible: panel.visible
+        group: panel.visible ? blobGroup : null
         x: panel.x + panels.leftMargin
         y: panel.y + panels.topMargin
         implicitWidth: panel.width
