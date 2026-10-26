@@ -236,15 +236,38 @@ StyledWindow {
         PanelBg {
             id: popoutBg
 
-            // Extra width to prevent vertical movement deformation partially detaching panel from bar
-            property real extraWidth: panels.popouts.isDetached ? 0 : 0.2
+            // Extra size to keep the deformed panel attached to the bar. It must grow
+            // towards the bar: left on a left bar, right on a right bar, up on a top
+            // bar and down on a bottom bar. Growing the wrong way pushes the content
+            // off-centre and leaves an empty strip on one side.
+            property real extraShift: panels.popouts.isDetached ? 0 : 0.2
 
             panel: panels.popoutsWrapper
             deformAmount: panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1
-            x: panels.popoutsWrapper.x + panels.popouts.x + panels.leftMargin - panels.popouts.width * extraWidth
-            implicitWidth: panels.popouts.width * (1 + extraWidth)
+            x: {
+                const baseX = panels.popoutsWrapper.x + panels.popouts.x + panels.leftMargin;
+                if (bar.position === "left")
+                    return baseX - panels.popouts.implicitWidth * extraShift;
+                return baseX;
+            }
+            y: {
+                const baseY = panels.popoutsWrapper.y + panels.popouts.y + panels.topMargin;
+                if (bar.position === "top")
+                    return baseY - panels.popouts.implicitHeight * extraShift;
+                return baseY;
+            }
+            implicitWidth: {
+                if (bar.position === "left" || bar.position === "right")
+                    return panels.popouts.implicitWidth * (1 + extraShift);
+                return panels.popouts.implicitWidth;
+            }
+            implicitHeight: {
+                if (bar.position === "top" || bar.position === "bottom")
+                    return panels.popouts.implicitHeight * (1 + extraShift);
+                return panels.popouts.implicitHeight;
+            }
 
-            Behavior on extraWidth {
+            Behavior on extraShift {
                 Anim {}
             }
         }
