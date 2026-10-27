@@ -70,7 +70,10 @@ StyledWindow {
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.launcher || screenState.session ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    // Plugins with text input inside a drawer (launcher-like sidebar tab, dashboard terminal) ask for
+    // keyboard focus through this hook; without it the stock drawers never take focus.
+    readonly property bool pluginKeyboardFocus: Hooks.call("drawers.wantsKeyboard", [root.screenState]) === true
+    WlrLayershell.keyboardFocus: screenState.launcher || screenState.session || root.pluginKeyboardFocus ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     mask: hasFullscreen ? emptyRegion : regions
 

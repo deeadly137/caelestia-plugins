@@ -9,6 +9,8 @@ Item {
     id: root
 
     required property ScreenState screenState
+    property var popouts
+    property var utilities
     readonly property Props props: Props {}
 
     readonly property bool shouldBeActive: screenState.sidebar && Config.sidebar.enabled
@@ -35,12 +37,16 @@ Item {
         anchors.margins: CUtils.clamp(anchors.leftMargin - Config.border.thickness, 0, anchors.leftMargin)
         anchors.bottomMargin: 0
 
-        active: root.shouldBeActive || root.visible
+        // A plugin-provided body may need to stay loaded after the sidebar closes, e.g. while an
+        // answer is still streaming.
+        active: root.shouldBeActive || root.visible || content.item?.keepAlive === true
 
         sourceComponent: Content {
             implicitWidth: Tokens.sizes.sidebar.width - content.anchors.leftMargin - content.anchors.margins
             props: root.props
             screenState: root.screenState
+            popouts: root.popouts
+            utilities: root.utilities
         }
     }
 }

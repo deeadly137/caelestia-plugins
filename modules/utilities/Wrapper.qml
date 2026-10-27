@@ -25,7 +25,10 @@ Item {
 
         reloadableId: "utilities"
     }
-    readonly property bool shouldBeActive: screenState.sidebar || (screenState.utilities && Config.utilities.enabled && !(screenState.session && Config.session.enabled))
+    // Plugins may keep the utilities panel closed while the sidebar is open (MiDnight behaviour);
+    // the default keeps the stock caelestia pairing.
+    readonly property bool openWithSidebar: Hooks.value("utilities.openWithSidebar", true)
+    readonly property bool shouldBeActive: (root.openWithSidebar && screenState.sidebar) || (screenState.utilities && Config.utilities.enabled && !(screenState.session && Config.session.enabled))
     readonly property real totalPadding: content.anchors.margins + CUtils.clamp(content.anchors.margins - Config.border.thickness, 0, content.anchors.margins)
     readonly property real nonAnimHeight: ((content.item as Content)?.nonAnimHeight ?? 0) + totalPadding
     property real offsetScale: shouldBeActive ? 0 : 1

@@ -255,6 +255,8 @@ Item {
         id: sidebar
 
         screenState: root.screenState
+        popouts: popoutsWrapper.content
+        utilities: utilities
 
         anchors.top: notifications.bottom
         anchors.bottom: utilities.top
