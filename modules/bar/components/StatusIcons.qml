@@ -172,22 +172,6 @@ StyledRect {
                     }
                 }
                 DelegateChoice {
-                    roleValue: "peripheralBattery"
-                    delegate: EntryWrapper {
-                        PeripheralBatteryStatus {
-                            colour: root.colour
-                        }
-                    }
-                }
-                DelegateChoice {
-                    roleValue: "notifications"
-                    delegate: EntryWrapper {
-                        NotificationsStatus {
-                            colour: root.colour
-                        }
-                    }
-                }
-                DelegateChoice {
                     // An id with no built-in icon (a stale id from another shell) simply gets an
                     // empty delegate; plugin status icons resolve by name here.
                     delegate: EntryWrapper {
@@ -206,7 +190,11 @@ StyledRect {
         required property var modelData
         required property int index
         property int margin: root.spacing / 2
-        readonly property bool present: !root.collapsed(modelData)
+        // A plugin status icon is wrapped in an EntryPointLoader; look through it so an icon that
+        // hides itself (feature switched off, no device) also drops its layout spacing.
+        readonly property var content: item && item.item !== undefined ? item.item : item
+        readonly property bool present: (content?.present ?? content?.visible ?? true) && !root.collapsed(modelData)
+        visible: content?.present ?? content?.visible ?? true
         property real topGap: present && index !== root.firstPresent ? margin : 0
         property real bottomGap: present && index !== root.lastPresent ? margin : 0
         property real leftGap: present && index !== root.firstPresent ? margin : 0

@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Caelestia.Config
 import Caelestia.Models
+import Caelestia.State
 import qs.services
 import qs.utils
 
@@ -21,6 +22,12 @@ Searcher {
     property string actualCurrent
     property bool previewColourLock
     property bool pendingPreviewClear
+
+    // The user's own "Play wallpaper" toggle stays authoritative. A plugin may mask playback (for
+    // example while a fullscreen window is visible) through the `wallpapers.paused` hook; removing
+    // the plugin restores normal playback without touching the toggle.
+    readonly property bool pausedByPlugin: Hooks.value("wallpapers.paused", false) === true
+    readonly property bool playing: PersistentState.wallpaperPlaying && !root.pausedByPlugin
 
     // A plugin can draw the wallpaper outside the shell (for example a Wallpaper Engine process on
     // the background layer). While a provider is registered, the shell's background window goes

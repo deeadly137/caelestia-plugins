@@ -150,14 +150,6 @@ PageBase {
             onToggled: GlobalConfig.background.wallpaperEnabled = checked
         }
 
-        ToggleRow {
-            last: true
-            text: Tr.tr("Pause on fullscreen")
-            subtext: Tr.tr("Pause video and animated wallpapers while a fullscreen window is visible")
-            checked: Config.background.videoWallpaperPauseOnFullscreen
-            onToggled: GlobalConfig.background.videoWallpaperPauseOnFullscreen = checked
-        }
-
         PluginPageExtensions {
             Layout.fillWidth: true
             page: "wallpaper"
