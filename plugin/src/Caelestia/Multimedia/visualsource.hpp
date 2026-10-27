@@ -10,13 +10,13 @@
 
 #include <atomic>
 
-namespace caelestia::multimedia {
+namespace caelestia::shell::multimedia {
 
 class VisualSource : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(VisualSource)
 
-    Q_PROPERTY(caelestia::multimedia::VisualSource::Type type READ type NOTIFY typeChanged)
+    Q_PROPERTY(caelestia::shell::multimedia::VisualSource::Type type READ type NOTIFY typeChanged)
     Q_PROPERTY(bool videoReady READ videoReady NOTIFY videoReadyChanged)
     // The decode size for imagePath, in logical pixels for scalable sources and device pixels otherwise
     Q_PROPERTY(QSize sourceSize READ sourceSize NOTIFY sourceSizeChanged)
@@ -25,8 +25,8 @@ class VisualSource : public QObject {
     Q_PROPERTY(QUrl imagePath READ imagePath NOTIFY imagePathChanged)
     Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(bool playing READ playing WRITE setPlaying NOTIFY playingChanged)
-    Q_PROPERTY(
-        caelestia::multimedia::VisualSource::FillMode fillMode READ fillMode WRITE setFillMode NOTIFY fillModeChanged)
+    Q_PROPERTY(caelestia::shell::multimedia::VisualSource::FillMode fillMode READ fillMode WRITE setFillMode NOTIFY
+            fillModeChanged)
     // A QML VideoOutput element from QtMultimedia
     Q_PROPERTY(QObject* videoOutput READ videoOutput WRITE setVideoOutput NOTIFY videoOutputChanged)
     // A QML item to use for the size of the loaded media
@@ -88,7 +88,9 @@ private:
     void refresh();
     void watchWindow(QQuickWindow* window);
     void onVideoFrame(const QVideoFrame& frame);
+    void onMediaStatusChanged(QMediaPlayer::MediaStatus status);
     void syncPlayer();
+    void unload();
     [[nodiscard]] QString localPath() const;
     [[nodiscard]] QUrl rawUrl() const;
     [[nodiscard]] Qt::AspectRatioMode aspectMode() const;
@@ -105,10 +107,13 @@ private:
     QQuickItem* m_sizeSource = nullptr;
     QString m_key;
     QSize m_bucket;
+    QUrl m_preview;
+    qint64 m_position = 0;
+    bool m_loading = false;
     std::atomic<quint32> m_generation = 0;
     QMetaObject::Connection m_windowConn;
     QMetaObject::Connection m_sinkConn;
     QMediaPlayer m_player;
 };
 
-} // namespace caelestia::multimedia
+} // namespace caelestia::shell::multimedia
