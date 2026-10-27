@@ -54,7 +54,7 @@ ClipRect {
     }
 
     property real blur: onSpecial ? 1 : 0
-    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+    readonly property bool isHorizontal: Hooks.barPosition(Config) === "top" || Hooks.barPosition(Config) === "bottom"
 
     function workspaceIndex(id: int): int {
         if (!Config.bar.workspaces.showUnoccupied)

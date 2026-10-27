@@ -132,9 +132,10 @@ class BarConfig : public settings::ObjectNode {
     CONFIG_PROPERTY(bool, persistent, true)
     CONFIG_PROPERTY(bool, showOnHover, true)
     CONFIG_PROPERTY(int, dragThreshold, 20)
-    // "left", "right", "top" or "bottom". A string keeps older configs valid while the Nexus
-    // selector restricts new values.
-    CONFIG_PROPERTY(QString, position, u"left"_s)
+    // "left", "right", "top" or "bottom". The shell itself renders all four; the value names the
+    // screen edge, and defaults to the stock caelestia side. A plugin can override the effective
+    // position through the `bar.position` hook without writing the shell config.
+    CONFIG_PROPERTY(QString, position, u"right"_s)
     CONFIG_SUBOBJECT(BarScrollActions, scrollActions)
     CONFIG_SUBOBJECT(BarPopouts, popouts)
     CONFIG_SUBOBJECT(BarWorkspaces, workspaces)
@@ -150,9 +151,12 @@ class BarConfig : public settings::ObjectNode {
             LIST_ENTRY(network, true),
             LIST_ENTRY(bluetooth, true),
             LIST_ENTRY(battery, true),
+            LIST_ENTRY(peripheralBattery, false),
+            LIST_ENTRY(notifications, true),
         }))
     CONFIG_SUBOBJECT(BarSections, entries)
     CONFIG_PROPERTY(QStringList, excludedScreens, {})
+    CONFIG_PROPERTY(QStringList, peripheralBatteryExcluded, {})
 };
 
 } // namespace caelestia::config

@@ -47,7 +47,7 @@ Item {
             anchors.leftMargin: Tokens.spacing.medium
             anchors.verticalCenter: icon.verticalCenter
 
-            implicitWidth: parent.width - icon.width - hideIcon.width - favouriteIcon.width - Tokens.padding.small
+            implicitWidth: parent.width - icon.width - itemActions.width - favouriteIcon.width - Tokens.padding.small
             implicitHeight: name.implicitHeight + comment.implicitHeight
 
             StyledText {
@@ -65,39 +65,37 @@ Item {
                 color: Colours.palette.m3outline
 
                 elide: Text.ElideRight
-                width: root.width - icon.width - hideIcon.width - favouriteIcon.width - Tokens.rounding.extraLargeIncreased
+                width: root.width - icon.width - itemActions.width - favouriteIcon.width - Tokens.rounding.extraLargeIncreased
 
                 anchors.top: name.bottom
             }
         }
 
-        MouseArea {
-            id: hideIcon
+        // Extra per-app actions supplied by plugins through the `launcher.itemActions` slot. Each
+        // injected component gets `entry` (the DesktopEntry) and `screenState` set after loading.
+        Row {
+            id: itemActions
 
-            width: 32
-            height: 32
             anchors.verticalCenter: parent.verticalCenter
-            anchors.right: parent.right
-            hoverEnabled: true
-            onClicked: {
-                const appId = root.modelData?.id;
-                if (!appId)
-                    return;
-                const hiddenApps = GlobalConfig.launcher.hiddenApps ? [...GlobalConfig.launcher.hiddenApps] : [];
-                if (Strings.testRegexList(hiddenApps, appId)) {
-                    const idx = hiddenApps.indexOf(appId);
-                    if (idx !== -1)
-                        hiddenApps.splice(idx, 1);
-                } else {
-                    hiddenApps.push(appId);
-                }
-                GlobalConfig.launcher.hiddenApps = hiddenApps;
-            }
+            anchors.right: favouriteIcon.left
+            anchors.rightMargin: Tokens.padding.small
+            spacing: Tokens.spacing.extraSmall
 
-            MaterialIcon {
-                anchors.centerIn: parent
-                text: Strings.testRegexList(GlobalConfig.launcher.hiddenApps, root.modelData?.id) ? "visibility_off" : "visibility"
-                color: hideIcon.containsMouse ? Colours.palette.m3primary : Colours.palette.m3outline
+            Repeater {
+                model: Hooks.slot("launcher.itemActions")
+
+                delegate: Loader {
+                    required property var modelData
+
+                    sourceComponent: modelData.component
+
+                    onLoaded: {
+                        for (const key in modelData.properties)
+                            item[key] = modelData.properties[key];
+                        item.entry = root.modelData;
+                        item.screenState = root.screenState;
+                    }
+                }
             }
         }
 
@@ -106,8 +104,7 @@ Item {
 
             asynchronous: true
             anchors.verticalCenter: parent.verticalCenter
-            anchors.right: hideIcon.left
-            anchors.rightMargin: Tokens.padding.small
+            anchors.right: parent.right
             active: root.modelData && Strings.testRegexList(GlobalConfig.launcher.favouriteApps, root.modelData.id)
 
             sourceComponent: MaterialIcon {

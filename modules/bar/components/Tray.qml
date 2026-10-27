@@ -19,7 +19,7 @@ StyledRect {
 
     property bool expanded
 
-    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+    readonly property bool isHorizontal: Hooks.barPosition(Config) === "top" || Hooks.barPosition(Config) === "bottom"
 
     readonly property real nonAnimHeight: {
         if (isHorizontal)

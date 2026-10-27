@@ -52,11 +52,12 @@ PathView {
         readonly property string search: root.search.text.split(" ").slice(1).join(" ")
 
         values: {
-            const targetCategory = root.contentList.currentWallpaperTab;
+            const categories = Wallpapers.categories;
+            const targetCategory = root.contentList.activeWallpaperTab;
             const baseDir = Paths.wallsdir;
-            const allWalls = search ? Wallpapers.query(search) : (Wallpapers.grouped[targetCategory] || []);
+            const allWalls = search || categories.length === 0 ? Wallpapers.query(search) : (Wallpapers.grouped[targetCategory] || []);
 
-            if (!search)
+            if (!search || categories.length === 0)
                 return allWalls;
 
             if (targetCategory === "Main")

@@ -5,6 +5,7 @@ import Quickshell
 import Caelestia.Config
 import qs.components
 import qs.modules.launcher.services
+import qs.services
 
 Item {
     id: root
@@ -31,10 +32,10 @@ Item {
             implicitHeight = implicitHeight; // Break binding during close anim
     }
 
-    clip: Config.bar.position === "bottom"
+    clip: Hooks.barPosition(Config) === "bottom"
     visible: offsetScale < 1
-    anchors.bottomMargin: (Config.bar.position === "bottom" ? 0 : -implicitHeight - 5) * offsetScale
-    height: Config.bar.position === "bottom" ? implicitHeight * (1 - offsetScale) : implicitHeight
+    anchors.bottomMargin: (Hooks.barPosition(Config) === "bottom" ? 0 : -implicitHeight - 5) * offsetScale
+    height: Hooks.barPosition(Config) === "bottom" ? implicitHeight * (1 - offsetScale) : implicitHeight
     implicitHeight: content.implicitHeight
     implicitWidth: content.implicitWidth || 630 // Hard coded fallback for first open
     opacity: 1 - offsetScale

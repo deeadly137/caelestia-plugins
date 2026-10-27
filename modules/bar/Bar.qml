@@ -22,7 +22,7 @@ Item {
     required property bool fullscreen
     readonly property int vPadding: Tokens.padding.large
 
-    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+    readonly property bool isHorizontal: Hooks.barPosition(Config) === "top" || Hooks.barPosition(Config) === "bottom"
 
     readonly property real spacing: Tokens.spacing.medium
 

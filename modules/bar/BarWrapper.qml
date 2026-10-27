@@ -6,6 +6,7 @@ import Caelestia.Config
 import qs.components
 import qs.utils
 import qs.modules.bar.popouts as BarPopouts
+import qs.services
 
 Item {
     id: root
@@ -18,7 +19,7 @@ Item {
     Config.screen: screen.name
 
     readonly property bool disabled: Strings.testRegexList(Config.bar.excludedScreens, screen.name)
-    readonly property string position: Config.bar.position
+    readonly property string position: Hooks.barPosition(Config)
 
     readonly property int padding: Math.max(Tokens.padding.small, Config.border.thickness)
     readonly property int contentWidth: Tokens.sizes.bar.innerWidth + padding * 2
@@ -26,7 +27,7 @@ Item {
     readonly property bool shouldBeVisible: !fullscreen && !disabled && (Config.bar.persistent || screenState.bar || isHovered)
     property bool isHovered
 
-    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+    readonly property bool isHorizontal: Hooks.barPosition(Config) === "top" || Hooks.barPosition(Config) === "bottom"
     readonly property int clampedThickness: Math.max(Config.border.minThickness, isHorizontal ? implicitHeight : implicitWidth)
     readonly property int clampedWidth: isHorizontal ? root.width : clampedThickness
     readonly property int clampedHeight: isHorizontal ? clampedThickness : root.height
@@ -120,7 +121,7 @@ Item {
             State {
                 name: "left"
                 Config.screen: root.screen.name
-                when: Config.bar.position === "left"
+                when: Hooks.barPosition(Config) === "left"
 
                 AnchorChanges {
                     target: content
@@ -133,7 +134,7 @@ Item {
             State {
                 name: "right"
                 Config.screen: root.screen.name
-                when: Config.bar.position === "right"
+                when: Hooks.barPosition(Config) === "right"
 
                 AnchorChanges {
                     target: content
@@ -146,7 +147,7 @@ Item {
             State {
                 name: "top"
                 Config.screen: root.screen.name
-                when: Config.bar.position === "top"
+                when: Hooks.barPosition(Config) === "top"
 
                 AnchorChanges {
                     target: content
@@ -159,7 +160,7 @@ Item {
             State {
                 name: "bottom"
                 Config.screen: root.screen.name
-                when: Config.bar.position === "bottom"
+                when: Hooks.barPosition(Config) === "bottom"
 
                 AnchorChanges {
                     target: content

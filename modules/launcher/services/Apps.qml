@@ -3,6 +3,7 @@ pragma Singleton
 import Quickshell
 import Caelestia.Config
 import Caelestia.Models
+import qs.services
 import qs.utils
 
 Searcher {
@@ -70,6 +71,6 @@ Searcher {
 
         path: `${Paths.state}/apps.sqlite`
         favouriteApps: GlobalConfig.launcher.favouriteApps
-        entries: DesktopEntries.applications.values.filter(a => !Strings.testRegexList(GlobalConfig.launcher.hiddenApps, a.id))
+        entries: DesktopEntries.applications.values.filter(a => !Strings.testRegexList(GlobalConfig.launcher.hiddenApps, a.id) && Hooks.call("launcher.appVisible", [a]) !== false)
     }
 }

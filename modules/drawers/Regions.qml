@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.modules.bar as Bar
+import qs.services
 
 Region {
     id: root
@@ -17,10 +18,10 @@ Region {
     readonly property real borderThickness: win.contentItem.Config.border.thickness
     readonly property real clampedThickness: win.contentItem.Config.border.clampedThickness
 
-    readonly property real barLeftWidth: Config.bar.position === "left" ? bar.clampedThickness : clampedThickness
-    readonly property real barRightWidth: Config.bar.position === "right" ? bar.clampedThickness : clampedThickness
-    readonly property real barTopHeight: Config.bar.position === "top" ? bar.clampedThickness : clampedThickness
-    readonly property real barBottomHeight: Config.bar.position === "bottom" ? bar.clampedThickness : clampedThickness
+    readonly property real barLeftWidth: Hooks.barPosition(Config) === "left" ? bar.clampedThickness : clampedThickness
+    readonly property real barRightWidth: Hooks.barPosition(Config) === "right" ? bar.clampedThickness : clampedThickness
+    readonly property real barTopHeight: Hooks.barPosition(Config) === "top" ? bar.clampedThickness : clampedThickness
+    readonly property real barBottomHeight: Hooks.barPosition(Config) === "bottom" ? bar.clampedThickness : clampedThickness
 
     x: barLeftWidth + win.dragMaskPadding
     y: barTopHeight + win.dragMaskPadding
@@ -44,7 +45,7 @@ Region {
         id: sessionRegion
 
         panel: root.panels.sessionWrapper
-        x: Config.bar.position === "right" ? 0 : root.win.width - sessionRegion.width
+        x: Hooks.barPosition(Config) === "right" ? 0 : root.win.width - sessionRegion.width
         width: panel.width * (1 - root.panels.session.offsetScale) + root.borderThickness + sidebarRegion.width
     }
 
@@ -52,7 +53,7 @@ Region {
         id: sidebarRegion
 
         panel: root.panels.sidebar
-        x: Config.bar.position === "right" ? 0 : root.win.width - sidebarRegion.width
+        x: Hooks.barPosition(Config) === "right" ? 0 : root.win.width - sidebarRegion.width
         width: panel.width * (1 - root.panels.sidebar.offsetScale) + root.borderThickness
     }
 
@@ -60,19 +61,19 @@ Region {
         id: osdRegion
 
         panel: root.panels.osdWrapper
-        x: Config.bar.position === "right" ? 0 : root.win.width - osdRegion.width
+        x: Hooks.barPosition(Config) === "right" ? 0 : root.win.width - osdRegion.width
         width: panel.width * (1 - root.panels.osd.offsetScale) + root.borderThickness + sessionRegion.width
     }
 
     R {
         panel: root.panels.notifications
-        y: Config.bar.position === "bottom" ? (panel.y + root.panels.topMargin) : 0
-        height: Config.bar.position === "bottom" ? (root.win.height - y) : (panel.height + panel.y + root.panels.topMargin)
+        y: Hooks.barPosition(Config) === "bottom" ? (panel.y + root.panels.topMargin) : 0
+        height: Hooks.barPosition(Config) === "bottom" ? (root.win.height - y) : (panel.height + panel.y + root.panels.topMargin)
     }
 
     R {
         panel: root.panels.utilities
-        y: Config.bar.position === "bottom" ? 0 : root.win.height - height
+        y: Hooks.barPosition(Config) === "bottom" ? 0 : root.win.height - height
         height: panel.height * (1 - root.panels.utilities.offsetScale) + root.borderThickness
     }
 

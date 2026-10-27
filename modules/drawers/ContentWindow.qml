@@ -170,10 +170,10 @@ StyledWindow {
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
             group: blobGroup
             radius: root.borderRounding
-            borderLeft: (Config.bar.position === "left" ? bar.implicitWidth : root.borderThickness) - anchors.margins - root.sdfBorderOffset
-            borderRight: (Config.bar.position === "right" ? bar.implicitWidth : root.borderThickness) - anchors.margins - root.sdfBorderOffset
-            borderTop: (Config.bar.position === "top" ? bar.implicitHeight : root.borderThickness) - anchors.margins - root.sdfBorderOffset
-            borderBottom: (Config.bar.position === "bottom" ? bar.implicitHeight : root.borderThickness) - anchors.margins - root.sdfBorderOffset
+            borderLeft: (Hooks.barPosition(Config) === "left" ? bar.implicitWidth : root.borderThickness) - anchors.margins - root.sdfBorderOffset
+            borderRight: (Hooks.barPosition(Config) === "right" ? bar.implicitWidth : root.borderThickness) - anchors.margins - root.sdfBorderOffset
+            borderTop: (Hooks.barPosition(Config) === "top" ? bar.implicitHeight : root.borderThickness) - anchors.margins - root.sdfBorderOffset
+            borderBottom: (Hooks.barPosition(Config) === "bottom" ? bar.implicitHeight : root.borderThickness) - anchors.margins - root.sdfBorderOffset
         }
 
         PanelBg {
@@ -288,7 +288,7 @@ StyledWindow {
             State {
                 name: "left"
                 Config.screen: root.screen.name
-                when: Config.bar.position === "left"
+                when: Hooks.barPosition(Config) === "left"
 
                 AnchorChanges {
                     target: bar
@@ -311,7 +311,7 @@ StyledWindow {
             State {
                 name: "right"
                 Config.screen: root.screen.name
-                when: Config.bar.position === "right"
+                when: Hooks.barPosition(Config) === "right"
 
                 AnchorChanges {
                     target: bar
@@ -334,7 +334,7 @@ StyledWindow {
             State {
                 name: "top"
                 Config.screen: root.screen.name
-                when: Config.bar.position === "top"
+                when: Hooks.barPosition(Config) === "top"
 
                 AnchorChanges {
                     target: bar
@@ -357,7 +357,7 @@ StyledWindow {
             State {
                 name: "bottom"
                 Config.screen: root.screen.name
-                when: Config.bar.position === "bottom"
+                when: Hooks.barPosition(Config) === "bottom"
 
                 AnchorChanges {
                     target: bar

@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Caelestia.Config
 import qs.components
+import qs.services
 
 Item {
     id: root
@@ -16,8 +17,8 @@ Item {
     property real sidebarOffset: sidebarVisible ? 14 : 0
 
     visible: offsetScale < 1
-    anchors.leftMargin: Config.bar.position === "right" ? (-implicitWidth - 5 - sidebarOffset) * offsetScale : 0
-    anchors.rightMargin: Config.bar.position !== "right" ? (-implicitWidth - 5 - sidebarOffset) * offsetScale : 0
+    anchors.leftMargin: Hooks.barPosition(Config) === "right" ? (-implicitWidth - 5 - sidebarOffset) * offsetScale : 0
+    anchors.rightMargin: Hooks.barPosition(Config) !== "right" ? (-implicitWidth - 5 - sidebarOffset) * offsetScale : 0
     implicitWidth: content.implicitWidth
     implicitHeight: content.implicitHeight || 510 // Hard coded fallback for first open
     opacity: 1 - offsetScale

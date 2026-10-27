@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
-import qs.components.controls
 import qs.modules.nexus.common
 
 PageBase {
@@ -24,42 +23,8 @@ PageBase {
             text: Tr.tr("Behaviour")
         }
 
-        SelectRow {
-            first: true
-            label: Tr.tr("Position")
-            subtext: Tr.tr("Screen edge the taskbar sits on")
-            fallbackText: Tr.tr("Left")
-            fallbackIcon: "west"
-
-            readonly property list<MenuItem> items: [
-                MenuItem {
-                    icon: "west"
-                    text: Tr.tr("Left")
-                    value: "left"
-                },
-                MenuItem {
-                    icon: "east"
-                    text: Tr.tr("Right")
-                    value: "right"
-                },
-                MenuItem {
-                    icon: "north"
-                    text: Tr.tr("Top")
-                    value: "top"
-                },
-                MenuItem {
-                    icon: "south"
-                    text: Tr.tr("Bottom")
-                    value: "bottom"
-                }
-            ]
-
-            menuItems: items
-            active: items.find(item => item.value === Config.bar.position) ?? items[0]
-            onSelected: item => GlobalConfig.bar.position = item.value
-        }
-
         ToggleRow {
+            first: true
             text: Tr.tr("Persistent")
             subtext: Tr.tr("Keep the bar visible at all times")
             checked: Config.bar.persistent
@@ -152,6 +117,12 @@ PageBase {
             subtext: Tr.tr("Scroll on the bottom half of the bar to adjust brightness")
             checked: Config.bar.scrollActions.brightness
             onToggled: GlobalConfig.bar.scrollActions.brightness = checked
+        }
+
+        // Page extensions, e.g. a plugin that exposes the bar position it owns.
+        PluginPageExtensions {
+            Layout.fillWidth: true
+            page: "taskbar"
         }
     }
 }

@@ -24,7 +24,7 @@ StyledRect {
         return Tokens.font.body.builders.small.scale(1.1).width(scale * 100).letterSpacing(scale).build();
     }
 
-    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+    readonly property bool isHorizontal: Hooks.barPosition(Config) === "top" || Hooks.barPosition(Config) === "bottom"
 
     implicitWidth: isHorizontal ? (horizontalLayout.implicitWidth + root.padding * 2) : Tokens.sizes.bar.innerWidth
     implicitHeight: isHorizontal ? Tokens.sizes.bar.innerWidth : (verticalLayout.implicitHeight + root.padding * 2)

@@ -20,26 +20,36 @@ Item {
     required property int padding
     required property int rounding
 
-    readonly property bool showWallpapers: search.text.startsWith(`${GlobalConfig.launcher.actionPrefix}wallpaper `) || search.text === `${GlobalConfig.launcher.actionPrefix}wallpaper`
-    onShowWallpapersChanged: {
-        if (!showWallpapers)
-            return;
-
-        for (let category of Wallpapers.categories) {
-            const walls = Wallpapers.grouped[category] || [];
-            if (walls.some(w => w.path === Wallpapers.actualCurrent)) {
-                currentWallpaperTab = category;
-                break;
-            }
-        }
-    }
-
-    readonly property var currentList: showWallpapers ? wallpaperList.item : appList.item // Can be either ListView or PathView, so can't type properly
-    property string currentWallpaperTab: "Main"
+    readonly property bool showWallpapers: search.text.startsWith(`${GlobalConfig.launcher.actionPrefix}wallpaper `)
     readonly property var wallpaperTabs: Wallpapers.categories.map(category => ({
                 id: category,
                 text: category
             }))
+    onShowWallpapersChanged: {
+        if (!showWallpapers || root.wallpaperTabs.length === 0)
+            return;
+
+        for (const category of Wallpapers.categories) {
+            const walls = Wallpapers.grouped[category] || [];
+            if (walls.some(w => w.path === Wallpapers.actualCurrent)) {
+                currentWallpaperTab = category;
+                return;
+            }
+        }
+        currentWallpaperTab = root.wallpaperTabs[0].id;
+    }
+
+    readonly property var currentList: showWallpapers ? wallpaperList.item : appList.item // Can be either ListView or PathView, so can't type properly
+    // Only meaningful when a plugin supplies wallpaper categories.
+    property string currentWallpaperTab: ""
+    // Falls back to the first tab while `currentWallpaperTab` is unset or stale, so the picker never
+    // sits on an unknown folder when the wallpaper list loads after the launcher opens.
+    readonly property string activeWallpaperTab: {
+        const tabs = root.wallpaperTabs;
+        if (tabs.length === 0)
+            return "";
+        return tabs.some(tab => tab.id === root.currentWallpaperTab) ? root.currentWallpaperTab : tabs[0].id;
+    }
     property string animState: showWallpapers ? "wallpapers" : "apps"
 
     anchors.horizontalCenter: parent.horizontalCenter
@@ -68,7 +78,7 @@ Item {
 
             PropertyChanges {
                 root.implicitWidth: Math.max(root.Tokens.sizes.launcher.itemWidth * 1.2, wallpaperList.implicitWidth)
-                root.implicitHeight: root.Tokens.sizes.launcher.wallpaperHeight + 56
+                root.implicitHeight: root.Tokens.sizes.launcher.wallpaperHeight + (root.wallpaperTabs.length > 0 ? 56 : 0)
                 wallpaperList.active: true
             }
         }
@@ -139,7 +149,7 @@ Item {
         implicitWidth: Math.min(parent.width - Tokens.padding.large * 2, tabsRow.implicitWidth)
         implicitHeight: tabsRow.implicitHeight + indicator.implicitHeight + 5
 
-        visible: root.state === "wallpapers"
+        visible: root.state === "wallpapers" && root.wallpaperTabs.length > 0
 
         Flickable {
             id: tabsFlickable
@@ -171,7 +181,7 @@ Item {
                         required property var modelData
                         required property int index
 
-                        readonly property bool current: root.currentWallpaperTab === tab.modelData.id
+                        readonly property bool current: root.activeWallpaperTab === tab.modelData.id
 
                         implicitWidth: label.implicitWidth + Tokens.padding.medium * 2
                         implicitHeight: label.implicitHeight + Tokens.padding.small * 2
@@ -182,7 +192,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
 
                             function onWheel(event: WheelEvent): void {
-                                let idx = root.wallpaperTabs.findIndex(t => t.id === root.currentWallpaperTab);
+                                let idx = root.wallpaperTabs.findIndex(t => t.id === root.activeWallpaperTab);
                                 if (event.angleDelta.y < 0 || event.angleDelta.x < 0)
                                     idx = Math.min(idx + 1, root.wallpaperTabs.length - 1);
                                 else if (event.angleDelta.y > 0 || event.angleDelta.x > 0)
@@ -214,7 +224,7 @@ Item {
             Item {
                 id: indicator
 
-                property int currentIndex: Math.max(0, root.wallpaperTabs.findIndex(t => t.id === root.currentWallpaperTab))
+                property int currentIndex: Math.max(0, root.wallpaperTabs.findIndex(t => t.id === root.activeWallpaperTab))
                 property Item currentTab: tabsRepeater.itemAt(currentIndex)
 
                 anchors.top: tabsRow.bottom

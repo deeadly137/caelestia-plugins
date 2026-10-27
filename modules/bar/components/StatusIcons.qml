@@ -18,7 +18,7 @@ StyledRect {
     readonly property alias items: iconColumn
 
     readonly property int spacing: Tokens.spacing.medium / 2
-    readonly property bool isHorizontal: Config.bar.position === "top" || Config.bar.position === "bottom"
+    readonly property bool isHorizontal: Hooks.barPosition(Config) === "top" || Hooks.barPosition(Config) === "bottom"
 
     // Index of the first/last entry that isn't collapsed, for edge margin gating
     readonly property int firstPresent: {
@@ -167,6 +167,22 @@ StyledRect {
                     roleValue: "battery"
                     delegate: EntryWrapper {
                         BatteryStatus {
+                            colour: root.colour
+                        }
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "peripheralBattery"
+                    delegate: EntryWrapper {
+                        PeripheralBatteryStatus {
+                            colour: root.colour
+                        }
+                    }
+                }
+                DelegateChoice {
+                    roleValue: "notifications"
+                    delegate: EntryWrapper {
+                        NotificationsStatus {
                             colour: root.colour
                         }
                     }

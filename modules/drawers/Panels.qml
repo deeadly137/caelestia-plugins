@@ -12,6 +12,7 @@ import qs.modules.sidebar as Sidebar
 import qs.modules.utilities as Utilities
 import qs.modules.bar.popouts as BarPopouts
 import qs.modules.utilities.toasts as Toasts
+import qs.services
 
 Item {
     id: root
@@ -41,16 +42,16 @@ Item {
     readonly property real bottomMargin: anchors.bottomMargin
 
     anchors.fill: parent
-    anchors.leftMargin: Config.bar.position === "left" ? bar.implicitWidth : borderThickness
-    anchors.rightMargin: Config.bar.position === "right" ? bar.implicitWidth : borderThickness
-    anchors.topMargin: Config.bar.position === "top" ? bar.implicitHeight : borderThickness
-    anchors.bottomMargin: Config.bar.position === "bottom" ? bar.implicitHeight : borderThickness
+    anchors.leftMargin: Hooks.barPosition(Config) === "left" ? bar.implicitWidth : borderThickness
+    anchors.rightMargin: Hooks.barPosition(Config) === "right" ? bar.implicitWidth : borderThickness
+    anchors.topMargin: Hooks.barPosition(Config) === "top" ? bar.implicitHeight : borderThickness
+    anchors.bottomMargin: Hooks.barPosition(Config) === "bottom" ? bar.implicitHeight : borderThickness
 
     states: [
         State {
             name: "right"
             Config.screen: root.screen.name
-            when: Config.bar.position === "right"
+            when: Hooks.barPosition(Config) === "right"
 
             AnchorChanges {
                 target: osdWrapper
@@ -102,7 +103,7 @@ Item {
         State {
             name: "bottom"
             Config.screen: root.screen.name
-            when: Config.bar.position === "bottom"
+            when: Hooks.barPosition(Config) === "bottom"
 
             AnchorChanges {
                 target: notifications
@@ -141,8 +142,8 @@ Item {
 
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.leftMargin: Config.bar.position === "right" ? sidebar.width * (1 - sidebar.offsetScale) + session.width * (1 - session.offsetScale) : 0
-        anchors.rightMargin: Config.bar.position !== "right" ? sidebar.width * (1 - sidebar.offsetScale) + session.width * (1 - session.offsetScale) : 0
+        anchors.leftMargin: Hooks.barPosition(Config) === "right" ? sidebar.width * (1 - sidebar.offsetScale) + session.width * (1 - session.offsetScale) : 0
+        anchors.rightMargin: Hooks.barPosition(Config) !== "right" ? sidebar.width * (1 - sidebar.offsetScale) + session.width * (1 - session.offsetScale) : 0
         clip: sidebar.visible || session.visible
 
         implicitWidth: osd.implicitWidth * (1 - osd.offsetScale)
@@ -174,8 +175,8 @@ Item {
 
         anchors.top: parent.top
         anchors.right: parent.right
-        anchors.topMargin: (Config.bar.position === "top" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
-        anchors.bottomMargin: (Config.bar.position === "bottom" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
+        anchors.topMargin: (Hooks.barPosition(Config) === "top" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
+        anchors.bottomMargin: (Hooks.barPosition(Config) === "bottom" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
     }
 
     Item {
@@ -183,8 +184,8 @@ Item {
 
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
-        anchors.leftMargin: Config.bar.position === "right" ? sidebar.width * (1 - sidebar.offsetScale) : 0
-        anchors.rightMargin: Config.bar.position !== "right" ? sidebar.width * (1 - sidebar.offsetScale) : 0
+        anchors.leftMargin: Hooks.barPosition(Config) === "right" ? sidebar.width * (1 - sidebar.offsetScale) : 0
+        anchors.rightMargin: Hooks.barPosition(Config) !== "right" ? sidebar.width * (1 - sidebar.offsetScale) : 0
         clip: sidebar.visible
 
         implicitWidth: session.implicitWidth * (1 - session.offsetScale)
@@ -260,7 +261,7 @@ Item {
         anchors.right: parent.right
         property bool shouldPush: popoutsWrapper.offsetScale < 1 && popoutsWrapper.content.currentSection === "end"
 
-        anchors.topMargin: (Config.bar.position === "top" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : -notifications.anchors.topMargin
-        anchors.bottomMargin: (Config.bar.position === "bottom" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
+        anchors.topMargin: (Hooks.barPosition(Config) === "top" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : -notifications.anchors.topMargin
+        anchors.bottomMargin: (Hooks.barPosition(Config) === "bottom" && shouldPush) ? (popoutsWrapper.implicitHeight + Tokens.spacing.medium) : 0
     }
 }
