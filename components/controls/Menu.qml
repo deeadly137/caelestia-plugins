@@ -34,12 +34,34 @@ MouseArea {
 
     signal itemSelected(item: MenuItem)
 
-    parent: {
+    property bool attachedToWindow: false
+
+    // `QsWindow.window` is null while the object is still being constructed, and a binding that
+    // throws during construction is dropped permanently - it never re-evaluates once the item is
+    // parented. Reparent imperatively instead, retrying until the window exists.
+    function attachToWindow(): void {
         const win = QsWindow.window;
+        if (!win)
+            return;
         const contentWin = win as ContentWindow; // If inside the drawer content window, put it inside the interaction wrapper so hover works
-        return contentWin ? contentWin.interactionWrapper : (win as QsWindow).contentItem;
+        const target = contentWin ? contentWin.interactionWrapper : (win as QsWindow).contentItem;
+        if (!target)
+            return;
+        if (parent !== target)
+            parent = target;
+        attachedToWindow = true;
     }
+
     anchors.fill: parent
+
+    Component.onCompleted: attachToWindow()
+
+    Timer {
+        interval: 50
+        repeat: true
+        running: !root.attachedToWindow
+        onTriggered: root.attachToWindow()
+    }
 
     enabled: expanded
     hoverEnabled: expanded
