@@ -1,16 +1,29 @@
 pragma ComponentBehavior: Bound
 
+import QtQuick
 import QtQuick.Layouts
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
+import Caelestia.Plugins
 import qs.modules.nexus.common
 
 PageBase {
     id: root
 
-    function isToggleOn(id: string): bool {
+    // Quick toggles supplied by plugins. They are auto-added to the utilities card while the
+    // plugin is enabled, so they are listed here to give the user a way to turn them off.
+    readonly property var pluginToggles: {
+        CUtils.dependency(Plugins.entryPointsRevision);
+        return Plugins.entryPoints(EntryPointType.QuickToggle).slice().sort((a, b) => {
+            const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
+            return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
+        });
+    }
+
+    function isToggleOn(id: string, fallback = false): bool {
         const item = Config.utilities.quickToggles.values.find(t => t.id === id);
-        return item?.enabled ?? false;
+        return item?.enabled ?? fallback;
     }
 
     function setToggleOn(id: string, on: bool): void {
@@ -135,12 +148,38 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
+            last: root.pluginToggles.length === 0
             text: Tr.tr("VPN")
             subtext: Tr.tr("Connect or disconnect the VPN")
             disabled: !Config.utilities.cards.quickToggles
             checked: root.isToggleOn("vpn")
             onToggled: root.setToggleOn("vpn", checked)
+        }
+
+        // Plugin quick toggles. Without a config entry one is on by default; writing it here
+        // (enabled true or false) takes it over, so the switch below reflects and controls it.
+        SectionHeader {
+            visible: root.pluginToggles.length > 0
+            text: Tr.tr("Plugins")
+        }
+
+        Repeater {
+            model: root.pluginToggles
+
+            delegate: ToggleRow {
+                required property var modelData
+                required property int index
+
+                readonly property string toggleId: modelData.properties.name ?? ""
+
+                first: index === 0
+                last: index === root.pluginToggles.length - 1
+                text: modelData.properties.title ?? toggleId
+                subtext: modelData.properties.description ?? ""
+                disabled: !Config.utilities.cards.quickToggles
+                checked: root.isToggleOn(toggleId, true)
+                onToggled: root.setToggleOn(toggleId, checked)
+            }
         }
     }
 }
