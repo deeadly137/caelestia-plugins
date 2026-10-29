@@ -3,6 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components.controls
+import qs.services
 import qs.modules.nexus.common
 
 PageBase {
@@ -10,6 +12,32 @@ PageBase {
 
     title: Tr.tr("Taskbar")
     isSubPage: true
+
+    // Bar sides. The shell can draw the bar on any edge, but which edge is in use is decided by a
+    // plugin through the `bar.position` hook, so the row below only appears while one offers
+    // `bar.setPosition`.
+    readonly property list<MenuItem> sideItems: [
+        MenuItem {
+            icon: "west"
+            text: Tr.tr("Left")
+            value: "left"
+        },
+        MenuItem {
+            icon: "east"
+            text: Tr.tr("Right")
+            value: "right"
+        },
+        MenuItem {
+            icon: "north"
+            text: Tr.tr("Top")
+            value: "top"
+        },
+        MenuItem {
+            icon: "south"
+            text: Tr.tr("Bottom")
+            value: "bottom"
+        }
+    ]
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -117,6 +145,25 @@ PageBase {
             subtext: Tr.tr("Scroll on the bottom half of the bar to adjust brightness")
             checked: Config.bar.scrollActions.brightness
             onToggled: GlobalConfig.bar.scrollActions.brightness = checked
+        }
+
+        // Position. Clock format style dropdown: the value comes from the hook, the choice goes
+        // back through it, so the plugin keeps owning the setting.
+        SectionHeader {
+            visible: Hooks.hasFunction("bar.setPosition")
+            text: Tr.tr("Position")
+        }
+
+        SelectRow {
+            visible: Hooks.hasFunction("bar.setPosition")
+            first: true
+            last: true
+            label: Tr.tr("Bar position")
+            subtext: Tr.tr("Screen edge the taskbar sits on")
+            menuOnTop: true
+            menuItems: root.sideItems
+            active: root.sideItems.find(item => item.value === Hooks.value("bar.position", GlobalConfig.bar.position)) ?? root.sideItems[0]
+            onSelected: item => Hooks.call("bar.setPosition", [item.value])
         }
 
         // Page extensions, e.g. a plugin that exposes the bar position it owns.
