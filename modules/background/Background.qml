@@ -70,8 +70,15 @@ Variants {
             asynchronous: true
             active: Config.background.desktopClock.enabled
 
-            anchors.margins: Tokens.padding.extraLargeIncreased
-            anchors.leftMargin: Tokens.padding.extraLargeIncreased + Tokens.sizes.bar.innerWidth + Math.max(Tokens.padding.small, Config.border.thickness)
+            anchors.margins: clockBaseMargin
+            anchors.leftMargin: clockBarPosition === "left" ? clockBaseMargin + clockBarZone : clockBaseMargin
+            anchors.rightMargin: clockBarPosition === "right" ? clockBaseMargin + clockBarZone : clockBaseMargin
+            anchors.topMargin: clockBarPosition === "top" ? clockBaseMargin + clockBarZone : clockBaseMargin
+            anchors.bottomMargin: clockBarPosition === "bottom" ? clockBaseMargin + clockBarZone : clockBaseMargin
+
+            readonly property real clockBaseMargin: Tokens.padding.extraLargeIncreased
+            readonly property string clockBarPosition: Hooks.barPosition(Config)
+            readonly property int clockBarZone: ShellState.componentsFor(win.modelData)?.bar?.exclusiveZone ?? (Tokens.sizes.bar.innerWidth + Math.max(Tokens.padding.small, Config.border.thickness))
 
             state: Config.background.desktopClock.position
             states: [
