@@ -1,0 +1,27 @@
+{
+    "name": "Wallhaven",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "icon": "image",
+    "description": "Search Wallhaven and set a wallpaper without leaving the shell.",
+    "tags": [
+        "wallpaper",
+        "wallhaven",
+        "images",
+        "search"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "page-extension",
+            "source": "WallhavenPage.qml",
+            "properties": {
+                "page": "wallpaper",
+                "subpage": "wallhaven",
+                "subpageTitle": "Wallhaven",
+                "subpageIcon": "image",
+                "order": 20
+            }
+        }
+    ]
+}

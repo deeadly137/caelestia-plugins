@@ -3,13 +3,13 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// Fetches the public plugin index from CLST-plugin-list. The index only names repositories; the
-// manifest in each repository supplies the display metadata, so adding or changing a plugin does
-// not require an index release.
+// Fetches the public plugin index. The index lives in the shell repository (`plugins/index.json`)
+// and only names repositories and subdirectories; the manifest in each plugin directory supplies
+// the display metadata, so adding or changing a plugin does not require a shell release.
 Singleton {
     id: root
 
-    readonly property string indexUrl: "https://raw.githubusercontent.com/deeadly137/CLST-plugin-list/main/plugins.json"
+    readonly property string indexUrl: "https://raw.githubusercontent.com/deeadly137/caelestia-plugins/main/plugins/index.json"
 
     property bool loading: false
     property string error

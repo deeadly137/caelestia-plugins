@@ -1,0 +1,22 @@
+{
+    "name": "desktoppet",
+    "author": "deeadly137",
+    "version": "0.2.0",
+    "description": "A Shimeji desktop pet that walks, climbs, and can be dragged around the screen.",
+    "tags": [
+        "desktop",
+        "widget",
+        "pet",
+        "shimeji"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "desktop-widget",
+            "source": "DesktopPet.qml",
+            "properties": {
+                "layer": "top"
+            }
+        }
+    ]
+}

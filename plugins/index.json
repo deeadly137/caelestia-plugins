@@ -1,0 +1,35 @@
+{
+    "schema": 2,
+    "plugins": [
+        {
+            "id": "deeadly137/desktoplyrics",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-desktop-lyrics"
+        },
+        {
+            "id": "deeadly137/desktoppet",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-desktop-pet"
+        },
+        {
+            "id": "deeadly137/livewall",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-livewallpaper"
+        },
+        {
+            "id": "deeadly137/nebulawidgets",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-nebula-widgets"
+        },
+        {
+            "id": "deeadly137/wallhaven",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-wallhaven"
+        },
+        {
+            "id": "deeadly137/dimessentials",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-dim-essentials"
+        }
+    ]
+}

@@ -1,0 +1,37 @@
+{
+    "name": "NebulaWidgets",
+    "author": "deeadly137",
+    "version": "0.3.0",
+    "icon": "widgets",
+    "description": "Shape-based desktop widgets inspired by Nebula: clock, calendar, battery, images, and notes.",
+    "tags": [
+        "desktop",
+        "widget",
+        "clock",
+        "calendar",
+        "battery",
+        "image",
+        "text",
+        "notes",
+        "nebula"
+    ],
+    "banner": "preview.png",
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "desktop-widget",
+            "source": "NebulaWidgets.qml"
+        },
+        {
+            "type": "page-extension",
+            "source": "WidgetsPage.qml",
+            "properties": {
+                "page": "wallpaper",
+                "subpage": "widgets",
+                "subpageTitle": "Widgets",
+                "subpageIcon": "widgets",
+                "order": 10
+            }
+        }
+    ]
+}

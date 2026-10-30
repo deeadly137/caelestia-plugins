@@ -1,0 +1,62 @@
+{
+    "name": "dimessentials",
+    "displayName": "MiDnight Essentials",
+    "author": "deeadly137",
+    "version": "0.5.0",
+    "icon": "extension",
+    "description": "MiDnight Essentials: dashboard terminal tab, wallpaper quick toggle, notification and peripheral battery icons, tabbed sidebar with AI and news, launcher hide buttons, wallpaper folder groups, fullscreen wallpaper pausing, and taskbar side selection.",
+    "tags": [
+        "midnight",
+        "terminal",
+        "dashboard",
+        "wallpaper",
+        "launcher",
+        "taskbar",
+        "sidebar",
+        "ai",
+        "news"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "custom",
+            "source": "Essentials.qml"
+        },
+        {
+            "type": "dashboard-tab",
+            "source": "TerminalTab.qml",
+            "properties": {
+                "name": "terminal",
+                "title": "Terminal",
+                "icon": "terminal",
+                "order": 50
+            }
+        },
+        {
+            "type": "quick-toggle",
+            "source": "WallpaperToggle.qml",
+            "properties": {
+                "name": "wallpaper",
+                "title": "Wallpaper",
+                "description": "Open the wallpaper picker",
+                "order": 35
+            }
+        },
+        {
+            "type": "status-icon",
+            "source": "NotificationsIcon.qml",
+            "properties": {
+                "name": "notifications",
+                "order": 60
+            }
+        },
+        {
+            "type": "status-icon",
+            "source": "PeripheralBatteryIcon.qml",
+            "properties": {
+                "name": "peripheralBattery",
+                "order": 65
+            }
+        }
+    ]
+}
