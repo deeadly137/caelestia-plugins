@@ -45,9 +45,29 @@ PageBase {
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
 
+        // Position. Stock dropdown (same widget as Language & region → Clock format): the value
+        // comes from the hook, the choice goes back through it, so the plugin keeps owning the
+        // setting. Kept first on the page because it changes the whole layout.
+        SectionHeader {
+            visible: Hooks.hasFunction("bar.setPosition")
+            first: true
+            text: Tr.tr("Position")
+        }
+
+        SelectRow {
+            visible: Hooks.hasFunction("bar.setPosition")
+            first: true
+            last: true
+            label: Tr.tr("Bar position")
+            subtext: Tr.tr("Screen edge the taskbar sits on")
+            menuItems: root.sideItems
+            active: root.sideItems.find(item => item.value === Hooks.value("bar.position", GlobalConfig.bar.position)) ?? root.sideItems[0]
+            onSelected: item => Hooks.call("bar.setPosition", [item.value])
+        }
+
         // Behaviour
         SectionHeader {
-            first: true
+            first: !Hooks.hasFunction("bar.setPosition")
             text: Tr.tr("Behaviour")
         }
 
@@ -145,25 +165,6 @@ PageBase {
             subtext: Tr.tr("Scroll on the bottom half of the bar to adjust brightness")
             checked: Config.bar.scrollActions.brightness
             onToggled: GlobalConfig.bar.scrollActions.brightness = checked
-        }
-
-        // Position. Clock format style dropdown: the value comes from the hook, the choice goes
-        // back through it, so the plugin keeps owning the setting.
-        SectionHeader {
-            visible: Hooks.hasFunction("bar.setPosition")
-            text: Tr.tr("Position")
-        }
-
-        SelectRow {
-            visible: Hooks.hasFunction("bar.setPosition")
-            first: true
-            last: true
-            label: Tr.tr("Bar position")
-            subtext: Tr.tr("Screen edge the taskbar sits on")
-            menuOnTop: true
-            menuItems: root.sideItems
-            active: root.sideItems.find(item => item.value === Hooks.value("bar.position", GlobalConfig.bar.position)) ?? root.sideItems[0]
-            onSelected: item => Hooks.call("bar.setPosition", [item.value])
         }
 
         // Page extensions, e.g. a plugin that exposes the bar position it owns.
