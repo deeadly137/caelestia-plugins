@@ -1,7 +1,7 @@
 {
     "name": "DesktopLyrics",
     "author": "deeadly137",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "icon": "lyrics",
     "description": "Synced lyrics on the desktop, or on top of normal windows, with midnight-shell's options.",
     "tags": [

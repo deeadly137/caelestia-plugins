@@ -13,18 +13,20 @@ can be open at the same time.
 - Start playing something with synced lyrics (LRCLIB/NetEase, whatever the shell's media section
   uses). The lyrics fade in on their own.
 - The current line is highlighted; the previous and next lines fade out above and below.
-- Configure everything in **Nexus → System → Plugins → Desktop Lyrics**:
-  - **Overlay** — draw on top of normal windows instead of on the desktop.
-  - **Hide on fullscreen** / **Hide on tiled windows** — both on by default, like midnight-shell.
-  - **Scale** — 0.5 to 3.
-  - **Position** — nine-grid; defaults to bottom center.
-  - **Invert colours** — for light wallpapers.
-  - **Background** group — off by default, with opacity and blur.
-  - **Shadow** group — on by default, with opacity and blur.
+- Configure everything in **Nexus → System → Plugins → Desktop Lyrics**, which mirrors
+  midnight-shell's **Desktop lyrics** page:
+  - **General** — enable the lyrics, overlay on top of windows, auto-hide for fullscreen and for
+    tiled windows (both on by default, like midnight-shell).
+  - **Appearance** — position (nine-grid dropdown, defaults to bottom center), scale (0.5x–3.0x,
+    defaults to 1.0x) and invert colors for light wallpapers.
+  - **Background** — off by default; enable it, then set opacity (default 30%) and blur.
+  - **Shadow** — on by default, with opacity (default 60%) and blur strength (default 0.4).
 
 The box is 350x180 scaled by **Scale**, the same as midnight-shell, and its margins clear the
 taskbar on whichever edge it sits on (the taskbar position comes from the shell's `bar.position`
-hook, so it also follows a plugin-managed bar edge).
+hook, so it also follows a plugin-managed bar edge). Blur samples the wallpaper region behind the
+plate, like midnight-shell; the overlay copy draws only the plate tint, because there is no
+wallpaper behind it.
 
 Every screen gets its own copy. The lyrics take no pointer input, so clicking through them works
 normally.

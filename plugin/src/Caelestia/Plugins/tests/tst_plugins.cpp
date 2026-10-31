@@ -490,6 +490,13 @@ void TestPlugins::settingsReportsMetaProblems() {
     QVERIFY(meta.hasMin());
     QVERIFY(meta.hasMax());
 
+    // A dropdown is an option list too, so it reports the same problem when it has none
+    SettingMeta dropdown;
+    dropdown.setProperty("inputType", QVariant::fromValue(static_cast<int>(SettingMeta::Dropdown)));
+    settings.registerMeta(QStringLiteral("sub"), &dropdown);
+    QVERIFY2(settings.warnings().join(QLatin1Char('\n')).contains(QStringLiteral("sub: dropdown needs options")),
+        qPrintable(settings.warnings().join(QLatin1Char('\n'))));
+
     SettingMeta unset;
     QVERIFY(!unset.hasMin());
     QVERIFY(!unset.hasMax());

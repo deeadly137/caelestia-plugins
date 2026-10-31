@@ -36,6 +36,11 @@ class SettingMeta : public QObject, public QQmlPropertyValueSource {
     Q_PROPERTY(bool hasMax READ hasMax NOTIFY changed)
     Q_PROPERTY(qreal step MEMBER m_step NOTIFY changed)
 
+    // How a numeric input is shown. The page multiplies the value by displayScale before drawing
+    // it and appends suffix, so 0.3 with displayScale 100 and suffix "%" reads as 30%.
+    Q_PROPERTY(qreal displayScale MEMBER m_displayScale NOTIFY changed)
+    Q_PROPERTY(QString suffix MEMBER m_suffix NOTIFY changed)
+
     // Multi-select metadata
     Q_PROPERTY(QStringList options MEMBER m_options NOTIFY changed)
     Q_PROPERTY(QStringList optionIcons MEMBER m_optionIcons NOTIFY changed)
@@ -57,6 +62,9 @@ public:
         // Multi select
         SplitButton,
         BlobButton,
+
+        // Single choice from a dropdown menu
+        Dropdown,
     };
     Q_ENUM(InputType)
 
@@ -92,6 +100,8 @@ private:
     bool m_hasMin = false;
     bool m_hasMax = false;
     qreal m_step = 1;
+    qreal m_displayScale = 1;
+    QString m_suffix;
     QStringList m_options;
     QStringList m_optionIcons;
 };

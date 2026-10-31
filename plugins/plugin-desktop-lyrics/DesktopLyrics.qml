@@ -15,7 +15,11 @@ Item {
 
     property bool overlay: false
 
-    readonly property bool active: (root.settings.overlay ?? false) === root.overlay
+    readonly property var general: root.settings.general
+
+    // Only the copy matching the Overlay lyrics setting keeps a surface alive, and the feature
+    // toggle in General tears both down.
+    readonly property bool active: (root.general?.enabled ?? true) && ((root.general?.overlay ?? false) === root.overlay)
 
     Loader {
         anchors.fill: parent
@@ -28,6 +32,7 @@ Item {
 
         DesktopLyricsSurface {
             settings: root.settings
+            overlay: root.overlay
         }
     }
 }

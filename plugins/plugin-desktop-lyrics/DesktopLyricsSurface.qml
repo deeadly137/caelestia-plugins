@@ -22,18 +22,29 @@ Item {
 
     required property SettingsObject settings
 
+    // The above-window copy has no wallpaper behind it, so midnight-shell skips the blur there
+    // and leaves only the plate tint. Same here: the wallpaper region is only sampled by the
+    // desktop copy.
+    property bool overlay: false
+
+    readonly property var general: root.settings.general
+    readonly property var appearance: root.settings.appearance
+    readonly property var background: root.settings.background
+    readonly property var shadow: root.settings.shadow
+
     readonly property var screen: Quickshell.screens.find(candidate => candidate.name === Config.screen) ?? null
     readonly property var player: Players.active
 
-    property real lyricsScale: Math.max(0.5, Math.min(3, root.settings.scale ?? 1))
-    readonly property bool bgEnabled: root.settings.background?.enabled ?? false
-    readonly property bool bgBlur: bgEnabled && (root.settings.background?.blur ?? true)
-    readonly property real bgOpacity: root.settings.background?.opacity ?? 0.7
-    readonly property bool shadowEnabled: root.settings.shadow?.enabled ?? true
-    readonly property real shadowOpacity: root.settings.shadow?.opacity ?? 0.7
-    readonly property real shadowBlur: root.settings.shadow?.blur ?? 0.4
+    readonly property bool enabled: root.general?.enabled ?? true
+    property real lyricsScale: Math.max(0.5, Math.min(3, root.appearance?.scale ?? 1))
+    readonly property bool bgEnabled: root.enabled && (root.background?.enabled ?? false)
+    readonly property bool bgBlur: root.bgEnabled && (root.background?.blur ?? true) && !root.overlay && !Wallpapers.externalActive
+    readonly property real bgOpacity: root.background?.opacity ?? 0.3
+    readonly property bool shadowEnabled: root.shadow?.enabled ?? true
+    readonly property real shadowOpacity: root.shadow?.opacity ?? 0.6
+    readonly property real shadowBlur: root.shadow?.blur ?? 0.4
 
-    readonly property bool invertColors: root.settings.invertColors ?? false
+    readonly property bool invertColors: root.appearance?.invertColors ?? false
     readonly property bool useLightSet: Colours.light ? !root.invertColors : root.invertColors
     readonly property color safePrimary: root.useLightSet ? Colours.palette.m3primaryContainer : Colours.palette.m3primary
     readonly property color safeSecondary: root.useLightSet ? Colours.palette.m3secondaryContainer : Colours.palette.m3secondary
@@ -55,7 +66,7 @@ Item {
     // Nine positions, same names as midnight-shell. An unknown stored value falls back to the
     // default instead of leaving the box unanchored.
     readonly property var positions: ["top-left", "top-center", "top-right", "middle-left", "middle-center", "middle-right", "bottom-left", "bottom-center", "bottom-right"]
-    readonly property string position: root.positions.includes(String(root.settings.position ?? "")) ? String(root.settings.position) : "bottom-center"
+    readonly property string position: root.positions.includes(String(root.appearance?.position ?? "")) ? String(root.appearance.position) : "bottom-center"
 
     // The bar can be on any edge, and the lyrics must sit clear of it. `exclusiveZone` is the
     // bar's reserved thickness (border thickness while it is hidden), so use the same fallback as
@@ -67,7 +78,7 @@ Item {
     readonly property var monitor: root.screen ? Hypr.monitorFor(root.screen) : null
     readonly property bool hasFullscreen: root.monitor?.activeWorkspace?.toplevels?.values.some(toplevel => (toplevel.lastIpcObject?.fullscreen ?? 0) !== 0) ?? false
     readonly property bool hasTiled: root.monitor?.activeWorkspace?.toplevels?.values.some(toplevel => toplevel.lastIpcObject && !toplevel.lastIpcObject.floating && (toplevel.lastIpcObject.fullscreen ?? 0) === 0) ?? false
-    readonly property bool shouldHide: ((root.settings.autoHideFullscreen ?? true) && root.hasFullscreen) || ((root.settings.autoHideTiled ?? true) && root.hasTiled)
+    readonly property bool shouldHide: ((root.general?.autoHideFullscreen ?? true) && root.hasFullscreen) || ((root.general?.autoHideTiled ?? true) && root.hasTiled)
 
     property int currentIndex: -1
     property string displayedLyric: ""
@@ -76,7 +87,7 @@ Item {
 
     readonly property bool hasText: root.displayedLyric.trim() !== "" || root.previousLyricText.trim() !== "" || root.nextLyricText.trim() !== ""
     readonly property bool showLoading: Lyrics.loading && !Lyrics.hasLyrics
-    readonly property bool shown: !root.shouldHide && ((Lyrics.hasLyrics && root.hasText) || root.showLoading)
+    readonly property bool shown: root.enabled && !root.shouldHide && ((Lyrics.hasLyrics && root.hasText) || root.showLoading)
 
     // The shared Lyrics singleton is driven by whoever needs it; setTrack is idempotent, so this
     // coexists with the dashboard's lyric list.
@@ -300,25 +311,48 @@ Item {
                 shadowBlur: root.shadowBlur
             }
 
-            // The plugin has no handle on the wallpaper item, so the plate blurs the wallpaper
-            // file itself instead of sampling the region behind it like midnight-shell does.
-            ClipRect {
+            // midnight-shell blurs a ShaderEffectSource of the wallpaper item, which it owns in the
+            // same window. A plugin widget is its own layer surface, so the shell's wallpaper item
+            // cannot be sampled from here; draw the wallpaper at screen size inside a plate-sized
+            // clipped box instead, which captures the wallpaper pixels that sit behind the plate.
+            Item {
+                id: wallpaperRegion
+
                 anchors.fill: parent
-                radius: Tokens.rounding.large * root.lyricsScale
+                clip: true
                 visible: root.bgBlur
 
                 Image {
-                    anchors.fill: parent
-                    source: Wallpapers.actualCurrent
+                    id: wallpaperImage
+
+                    x: -plate.x
+                    y: -plate.y
+                    width: root.width
+                    height: root.height
+                    source: Wallpapers.current
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
-                    layer.enabled: true
-                    layer.effect: MultiEffect {
-                        blurEnabled: true
-                        blur: 1
-                        blurMax: 64
-                        autoPaddingEnabled: false
+                }
+            }
+
+            Loader {
+                id: blurLoader
+
+                anchors.fill: parent
+                active: root.bgBlur && wallpaperImage.status === Image.Ready
+                visible: active
+
+                sourceComponent: MultiEffect {
+                    source: ShaderEffectSource {
+                        sourceItem: wallpaperRegion
+                        hideSource: true
                     }
+                    maskSource: backgroundPlate
+                    maskEnabled: true
+                    blurEnabled: true
+                    blur: 1
+                    blurMax: 64
+                    autoPaddingEnabled: false
                 }
             }
 
@@ -330,6 +364,8 @@ Item {
                 radius: Tokens.rounding.large * root.lyricsScale
                 opacity: root.bgOpacity
                 color: Colours.palette.m3surface
+
+                layer.enabled: root.bgBlur
             }
 
             Loader {

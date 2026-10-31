@@ -42,6 +42,8 @@ QString inputTypeName(SettingMeta::InputType type) {
         return QStringLiteral("split button");
     case SettingMeta::BlobButton:
         return QStringLiteral("blob button");
+    case SettingMeta::Dropdown:
+        return QStringLiteral("dropdown");
     case SettingMeta::Default:
         break;
     }
@@ -127,6 +129,7 @@ QStringList SettingMeta::metaWarnings(const QString& path, const QMetaProperty& 
         break;
     case SplitButton:
     case BlobButton:
+    case Dropdown:
         if (m_options.isEmpty())
             warnings.append(QStringLiteral("%1: %2 needs options").arg(path, inputTypeName(m_inputType)));
         if (!m_optionIcons.isEmpty() && m_optionIcons.size() != m_options.size())
