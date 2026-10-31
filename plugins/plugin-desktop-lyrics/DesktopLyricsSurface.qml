@@ -25,7 +25,7 @@ Item {
     readonly property var screen: Quickshell.screens.find(candidate => candidate.name === Config.screen) ?? null
     readonly property var player: Players.active
 
-    readonly property real lyricsScale: Math.max(0.5, Math.min(3, root.settings.scale ?? 1))
+    property real lyricsScale: Math.max(0.5, Math.min(3, root.settings.scale ?? 1))
     readonly property bool bgEnabled: root.settings.background?.enabled ?? false
     readonly property bool bgBlur: bgEnabled && (root.settings.background?.blur ?? true)
     readonly property real bgOpacity: root.settings.background?.opacity ?? 0.7
@@ -129,6 +129,12 @@ Item {
     // The widget can appear after the track already loaded, or after enabling the plugin
     // mid-song (including while paused, when the timer does not run).
     Component.onCompleted: root.forceUpdate()
+
+    Behavior on lyricsScale {
+        Anim {
+            type: Anim.DefaultSpatial
+        }
+    }
 
     Timer {
         running: root.player?.isPlaying ?? false
@@ -273,12 +279,6 @@ Item {
 
         Behavior on opacity {
             Anim {}
-        }
-
-        Behavior on lyricsScale {
-            Anim {
-                type: Anim.DefaultSpatial
-            }
         }
 
         Behavior on implicitWidth {
@@ -519,14 +519,13 @@ Item {
                 }
             }
         }
-
-        readonly property real centerTargetY: root.currentIndex >= 0 ? (fadeContainer.height - currentLine.height) / 2 : (fadeContainer.height - nextLine.height) / 2
-        readonly property real previousTargetY: root.centerTargetY - previousLine.height - root.lyricSpacing
-        readonly property real nextTargetY: root.currentIndex >= 0 ? root.centerTargetY + currentLine.height + root.lyricSpacing : root.centerTargetY
-        readonly property real nextStartY: root.nextTargetY + nextLine.height + root.lyricSpacing
     }
 
     readonly property real lyricSpacing: Tokens.spacing.large * root.lyricsScale
+    readonly property real centerTargetY: root.currentIndex >= 0 ? (fadeContainer.height - currentLine.height) / 2 : (fadeContainer.height - nextLine.height) / 2
+    readonly property real previousTargetY: root.centerTargetY - previousLine.height - root.lyricSpacing
+    readonly property real nextTargetY: root.currentIndex >= 0 ? root.centerTargetY + currentLine.height + root.lyricSpacing : root.centerTargetY
+    readonly property real nextStartY: root.nextTargetY + nextLine.height + root.lyricSpacing
 
     SequentialAnimation {
         id: lyricSlide
@@ -534,37 +533,37 @@ Item {
         PropertyAction {
             target: previousLine
             property: "y"
-            value: plate.centerTargetY
+            value: root.centerTargetY
         }
         PropertyAction {
             target: currentLine
             property: "y"
-            value: plate.nextTargetY
+            value: root.nextTargetY
         }
         PropertyAction {
             target: nextLine
             property: "y"
-            value: plate.nextStartY
+            value: root.nextStartY
         }
         ParallelAnimation {
             NumberAnimation {
                 target: previousLine
                 property: "y"
-                to: plate.previousTargetY
+                to: root.previousTargetY
                 duration: Tokens.anim.durations.expressiveDefaultEffects
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: currentLine
                 property: "y"
-                to: plate.centerTargetY
+                to: root.centerTargetY
                 duration: Tokens.anim.durations.expressiveDefaultEffects
                 easing.type: Easing.OutCubic
             }
             NumberAnimation {
                 target: nextLine
                 property: "y"
-                to: plate.nextTargetY
+                to: root.nextTargetY
                 duration: Tokens.anim.durations.expressiveDefaultEffects
                 easing.type: Easing.OutCubic
             }

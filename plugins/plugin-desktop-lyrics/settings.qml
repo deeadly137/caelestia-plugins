@@ -2,8 +2,8 @@ import Caelestia.Plugins
 
 // Same options and defaults as midnight-shell's `background.desktopLyrics`, and the same set the
 // midnight Nexus page exposes. Midnight keeps an `alignment` value that its page never shows;
-// this plugin has no way to declare a settings row the generated page hides, so it stays at the
-// midnight default (centered) in DesktopLyricsSurface instead of showing a stray spin box.
+// this plugin has no way to declare a settings row the generated page hides, so the surface stays
+// at the midnight default (centered) instead of showing a stray spin box.
 SettingsObject {
     property bool overlay: false
     property bool autoHideFullscreen: true

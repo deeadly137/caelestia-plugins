@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Caelestia.Plugins
+import deeadly137.desktoplyrics
 
 // Entry point wrapper for the desktop-widget host. The manifest declares this file twice: once
 // with `layer: bottom` and `overlay: false` for the desktop copy, once with `layer: top` and
