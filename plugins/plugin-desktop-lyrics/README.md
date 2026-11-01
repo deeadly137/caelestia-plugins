@@ -18,11 +18,12 @@ can be open at the same time.
   - **General** — enable the lyrics, overlay on top of windows, auto-hide for fullscreen and for
     tiled windows (both on by default, like midnight-shell).
   - **Appearance** — position (nine-grid dropdown, defaults to bottom center), scale (0.5x–3.0x,
-    defaults to 1.0x) and invert colors for light wallpapers.
+    defaults to 1.0x), width (150–800 px, defaults to 350) and invert colors for light wallpapers.
   - **Background** — off by default; enable it, then set opacity (default 30%) and blur.
   - **Shadow** — on by default, with opacity (default 60%) and blur strength (default 0.4).
 
-The box is 350x180 scaled by **Scale**, the same as midnight-shell, and its margins clear the
+The box is 350 px wide by default and 180 px tall, both scaled by **Scale** (the 350 is midnight's
+plate width; **Width** moves the base width so long lines wrap wider), and its margins clear the
 taskbar on whichever edge it sits on (the taskbar position comes from the shell's `bar.position`
 hook, so it also follows a plugin-managed bar edge). Blur samples the wallpaper region behind the
 plate, like midnight-shell; the overlay copy draws only the plate tint, because there is no

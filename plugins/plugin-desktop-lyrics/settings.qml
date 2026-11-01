@@ -1,8 +1,9 @@
 import Caelestia.Plugins
 
-// Same groups, rows and labels as midnight-shell's Desktop lyrics page. Midnight keeps an
-// `alignment` value its page never shows; this plugin has no way to declare a settings row the
-// generated page hides, so the surface stays at the midnight default (centered) instead.
+// Same groups, rows and labels as midnight-shell's Desktop lyrics page, plus a Width slider in
+// Appearance. Midnight keeps an `alignment` value its page never shows; this plugin has no way to
+// declare a settings row the generated page hides, so the surface stays at the midnight default
+// (centered) instead.
 SettingsObject {
     property SettingsObject general: SettingsObject {
         property bool enabled: true
@@ -37,6 +38,7 @@ SettingsObject {
     property SettingsObject appearance: SettingsObject {
         property string position: "bottom-center"
         property real scale: 1
+        property real width: 350
         property bool invertColors: false
 
         SettingMeta on position {
@@ -52,6 +54,17 @@ SettingsObject {
             max: 3
             step: 0.1
             suffix: "x"
+        }
+
+        // Not a midnight setting: midnight pins the plate at 350 px and only exposes Scale.
+        // This moves the base width before Scale is applied, so long lines wrap wider.
+        SettingMeta on width {
+            label: "Width"
+            inputType: SettingMeta.Slider
+            min: 150
+            max: 800
+            step: 10
+            suffix: "px"
         }
 
         SettingMeta on invertColors {

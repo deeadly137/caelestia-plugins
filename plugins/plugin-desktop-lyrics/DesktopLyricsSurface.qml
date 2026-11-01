@@ -15,7 +15,8 @@ import qs.components.effects
 import qs.services
 
 // Synced lyrics for one screen. Geometry mirrors midnight-shell's background.desktopLyrics:
-// a 350x180 box at one of nine positions, with margins that clear the bar on whichever edge it
+// a 180 px tall box at one of nine positions, 350 px wide by default and resizable through the
+// plugin's Width setting, with margins that clear the bar on whichever edge it
 // sits on. The entry point wrapper decides whether this copy is the desktop or the above-window
 // one; this item only draws, it never takes pointer input.
 Item {
@@ -38,6 +39,7 @@ Item {
 
     readonly property bool enabled: root.general?.enabled ?? true
     property real lyricsScale: Math.max(0.5, Math.min(3, root.appearance?.scale ?? 1))
+    property real lyricsWidth: Math.max(150, Math.min(800, root.appearance?.width ?? 350))
     readonly property bool bgEnabled: root.enabled && (root.background?.enabled ?? false)
     readonly property bool bgBlur: root.bgEnabled && (root.background?.blur ?? true) && !root.overlay && !Wallpapers.externalActive && !RuntimeState.gameMode
     readonly property real bgOpacity: root.background?.opacity ?? 0.3
@@ -171,7 +173,7 @@ Item {
     Item {
         id: plate
 
-        implicitWidth: 350 * root.lyricsScale
+        implicitWidth: root.lyricsWidth * root.lyricsScale
         implicitHeight: 180 * root.lyricsScale
 
         anchors.margins: root.baseMargin
