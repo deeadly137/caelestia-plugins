@@ -8,6 +8,7 @@ import Caelestia
 import Caelestia.Config
 import Caelestia.Plugins
 import Caelestia.Services
+import Caelestia.State
 import qs.components
 import qs.components.controls
 import qs.components.effects
@@ -38,7 +39,7 @@ Item {
     readonly property bool enabled: root.general?.enabled ?? true
     property real lyricsScale: Math.max(0.5, Math.min(3, root.appearance?.scale ?? 1))
     readonly property bool bgEnabled: root.enabled && (root.background?.enabled ?? false)
-    readonly property bool bgBlur: root.bgEnabled && (root.background?.blur ?? true) && !root.overlay && !Wallpapers.externalActive
+    readonly property bool bgBlur: root.bgEnabled && (root.background?.blur ?? true) && !root.overlay && !Wallpapers.externalActive && !RuntimeState.gameMode
     readonly property real bgOpacity: root.background?.opacity ?? 0.3
     readonly property bool shadowEnabled: root.shadow?.enabled ?? true
     readonly property real shadowOpacity: root.shadow?.opacity ?? 0.6
