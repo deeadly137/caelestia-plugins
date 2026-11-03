@@ -5,6 +5,7 @@
 #include <qlist.h>
 #include <qobject.h>
 #include <qqmlintegration.h>
+#include <qset.h>
 #include <qstring.h>
 #include <qstringlist.h>
 #include <qvariant.h>
@@ -149,6 +150,11 @@ public:
     // Lazily instantiates the plugin's SettingsObject on first access (null if it declares none)
     [[nodiscard]] SettingsObject* settings();
 
+    // Records that `holder` has taken a reference to `settings` (by having it injected as a
+    // property), so a rebuild cannot free it while that object is still alive. The reference is
+    // dropped automatically when the holder is destroyed; holders are never the manifest itself.
+    void trackSettingsHolder(SettingsObject* settings, QObject* holder);
+
     void loadSettings(const QVariantMap& settings);
     [[nodiscard]] QVariantMap settingsValues() const;
 
@@ -206,6 +212,10 @@ private:
     // keeping the live values so a reload does not discard unsaved edits.
     void rebuildSettings();
 
+    // Frees a retired settings object once nothing can reach it any more. Called by the holder
+    // bookkeeping as its last reference goes, and directly when it never had one.
+    void releaseIfUnused(SettingsObject* settings);
+
     // Absolute URL for a manifest-relative asset. Absolute URLs are passed through unchanged.
     [[nodiscard]] QString assetUrl(const QString& source) const;
 
@@ -245,6 +255,15 @@ private:
     QByteArray m_settingsHash;
     QVariantMap m_storedSettings;
     bool m_settingsDirty = false;
+
+    // Live objects that had a settings object injected, per settings object. A rebuild cannot
+    // free one while an object still reads it, so it is deleted when the last holder goes
+    // instead of after an arbitrary grace period.
+    QHash<SettingsObject*, QSet<QObject*>> m_settingsHolders;
+
+    // Settings objects that a rebuild has replaced but that are still referenced by a live
+    // object. Deleted by releaseIfUnused() once their holder set empties.
+    QSet<SettingsObject*> m_retiredSettings;
 };
 
 } // namespace caelestia::plugins

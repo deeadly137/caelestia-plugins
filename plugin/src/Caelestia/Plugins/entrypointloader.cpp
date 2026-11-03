@@ -250,7 +250,8 @@ void EntryPointLoader::create() {
         return;
     }
 
-    const auto properties = injectedProperties(object);
+    SettingsObject* injectedSettings = nullptr;
+    const auto properties = injectedProperties(object, &injectedSettings);
     if (!properties.isEmpty())
         m_component->setInitialProperties(object, properties);
 
@@ -266,6 +267,12 @@ void EntryPointLoader::create() {
             setStatus(Error);
         return;
     }
+
+    // The new object reads the settings object it was just handed, so the manifest may not free
+    // it before this one is gone. Recorded before the swap, and dropped automatically when the
+    // object is destroyed.
+    if (injectedSettings && m_plugin)
+        m_plugin->trackSettingsHolder(injectedSettings, object);
 
     // The replacement exists, so the previous version can go. On a swap this is the handover
     // point: both objects have been created, only the new one survives.
@@ -340,7 +347,7 @@ bool EntryPointLoader::declaresProperty(const QObject* object, const QString& na
     return meta->property(index).enclosingMetaObject() == meta;
 }
 
-QVariantMap EntryPointLoader::injectedProperties(const QObject* object) const {
+QVariantMap EntryPointLoader::injectedProperties(const QObject* object, SettingsObject** injectedSettings) const {
     QVariantMap properties;
 
     // Manifest `properties` are initial values for properties the entry point actually declares.
@@ -363,6 +370,9 @@ QVariantMap EntryPointLoader::injectedProperties(const QObject* object) const {
         // Built on demand, so this picks up the object rebuilt for the current generation
         SettingsObject* const settings = m_plugin ? m_plugin->settings() : nullptr;
         properties.insert(QStringLiteral("settings"), QVariant::fromValue(settings));
+
+        if (injectedSettings)
+            *injectedSettings = settings;
     }
 
     return properties;

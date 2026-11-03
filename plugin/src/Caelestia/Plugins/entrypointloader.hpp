@@ -13,6 +13,7 @@
 namespace caelestia::plugins {
 
 class PluginManifest;
+class SettingsObject;
 
 class EntryPointLoader : public QQuickItem {
     Q_OBJECT
@@ -113,8 +114,11 @@ private:
     // whichever generation is current then; there is no stored URL to go stale.
     void trackPlugin();
 
-    // The subset of the injectable properties actually declared by the given object
-    [[nodiscard]] QVariantMap injectedProperties(const QObject* object) const;
+    // The subset of the injectable properties actually declared by the given object. Sets
+    // `injectedSettings` to the settings object when it was one of them, so the caller can record
+    // the object as a holder of it.
+    [[nodiscard]] QVariantMap injectedProperties(
+        const QObject* object, SettingsObject** injectedSettings = nullptr) const;
 
     EntryPoint m_entryPoint;
     QPointer<PluginManifest> m_plugin;

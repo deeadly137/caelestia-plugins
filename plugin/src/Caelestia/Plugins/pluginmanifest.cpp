@@ -558,15 +558,51 @@ void PluginManifest::rebuildSettings() {
 
     m_storedSettings = m_settings->toMap();
 
-    // Detach and retire the old object instead of deleting it now. A loader's previous component
-    // is destroyed with deleteLater(), so deleting the settings it reads first would make those
-    // bindings briefly observe null while the old component is still alive.
+    // Detach and retire the old object instead of deleting it now: objects created for the
+    // previous generation still hold it, and their bindings must not observe a null or freed
+    // settings object while they are being replaced. Ownership moves to the holder set, so the
+    // last object that reads it also decides when it goes; it stays parented here as a fallback
+    // for the case where the plugin itself is torn down first.
     auto* const old = m_settings;
     m_settings = nullptr;
-    old->setParent(nullptr);
-    QTimer::singleShot(5000, old, &QObject::deleteLater);
+
+    m_retiredSettings.insert(old);
+    qCDebug(lcPluginSettings) << "Retired the settings object of" << m_id << "- freed when its last holder goes";
+    releaseIfUnused(old);
 
     emit settingsChanged();
+}
+
+void PluginManifest::releaseIfUnused(SettingsObject* settings) {
+    if (!settings || settings == m_settings || !m_retiredSettings.contains(settings))
+        return;
+
+    if (!m_settingsHolders.value(settings).isEmpty())
+        return;
+
+    m_settingsHolders.remove(settings);
+    m_retiredSettings.remove(settings);
+    qCDebug(lcPluginSettings) << "Destroying the retired settings object of" << m_id;
+    settings->deleteLater();
+}
+
+void PluginManifest::trackSettingsHolder(SettingsObject* settings, QObject* holder) {
+    if (!settings || !holder || holder == this)
+        return;
+
+    m_settingsHolders[settings].insert(holder);
+
+    // The holder outlives this object only if the plugin is being torn down, and then the whole
+    // map goes with the manifest, so the context is this on purpose.
+    connect(holder, &QObject::destroyed, this, [this, settings] {
+        auto it = m_settingsHolders.find(settings);
+        if (it == m_settingsHolders.end())
+            return;
+
+        it->remove(sender());
+        if (it->isEmpty())
+            releaseIfUnused(settings);
+    });
 }
 
 SettingsObject* PluginManifest::settings() {
