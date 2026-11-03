@@ -53,6 +53,11 @@ class Plugins : public QObject, public QQmlParserStatus {
     // itself can stay identical while its contents change.
     Q_PROPERTY(int entryPointsRevision READ entryPointsRevision NOTIFY entryPointsRevisionChanged)
 
+    // Counters for the last discovery/reload pass: what triggered it, which plugins it scanned and
+    // how many files it had to read versus reuse. Debugging aid for the hot reload path, and the
+    // measurement the "an edit only rescans its own plugin" rule is checked against.
+    Q_PROPERTY(QVariantMap scanStats READ scanStats NOTIFY scanStatsChanged)
+
 public:
     explicit Plugins(QObject* parent = nullptr);
     ~Plugins() override;
@@ -81,6 +86,8 @@ public:
     void setEnabled(const QStringList& enabled);
 
     [[nodiscard]] int entryPointsRevision() const;
+
+    [[nodiscard]] QVariantMap scanStats() const;
 
     [[nodiscard]] bool installing() const;
     [[nodiscard]] QString installingPlugin() const;
@@ -117,6 +124,7 @@ signals:
     void conflictingPluginsChanged();
     void enabledChanged();
     void entryPointsRevisionChanged();
+    void scanStatsChanged();
     void installingChanged();
     void installingPluginChanged();
     void installErrorChanged();
@@ -141,6 +149,27 @@ private:
 
         // The module's fingerprint plus the manifest fields a reload depends on
         QByteArray fingerprint;
+
+        // Per-file mtime/size/hash stamps for this plugin, kept across rescans and module
+        // recreation so an untouched file is only stat'ed.
+        PluginModuleStamps stamps;
+    };
+
+    // What one pass did, for the counters and the perf log.
+    struct ScanCounters {
+        int manifestsReparsed = 0;
+        int modulesScanned = 0;
+        int filesRead = 0;
+        int filesReused = 0;
+        int generationsBumped = 0;
+
+        // Ids, not dirs, because these end up in the log and next to the plugin in the UI
+        QStringList scanned;
+        QStringList reloaded;
+
+        // Per plugin file counts, as `id: read/reused`, so a partial pass can be checked against
+        // the rule that the untouched plugins cost nothing.
+        QStringList details;
     };
 
     void loadConfig();
@@ -151,17 +180,26 @@ private:
     void finishInstall(bool success, const QString& message);
 
     // `force` reloads every plugin even if nothing about it changed, which is what an explicit
-    // reload() asks for. Watch driven rescans leave it false so an unrelated edit costs nothing.
-    void rescan(bool force = false);
+    // reload() asks for. `dirty` limits the pass to the plugins whose files the watcher reported
+    // changed; empty means every plugin. Watch driven rescans leave `force` false so an unrelated
+    // edit costs nothing.
+    void rescan(bool force = false, const QSet<QString>& dirty = {}, const QString& trigger = {});
 
-    // Rescans the tree of every plugin that is going to run, refreshes its warnings, and bumps the
-    // generation of each one whose fingerprint moved. A plugin that is invalid or disabled has its
-    // record cleared instead, so it is neither registered nor watched until it comes back.
-    void updateModules(bool force = false);
+    // Rescans the tree of every plugin in `dirty` (all of them when it is empty or `force` is
+    // set), refreshes its warnings, and bumps the generation of each one whose fingerprint moved.
+    // A plugin that is invalid or disabled has its record cleared instead, so it is neither
+    // registered nor watched until it comes back.
+    void updateModules(bool force = false, const QSet<QString>& dirty = {}, ScanCounters* counters = nullptr);
 
     void onWatchEvent(const QString& path);
+
+    // Diffs the desired watch set against the watcher's current one instead of re-adding every
+    // path. Also rebuilds the event-owner map used to attribute a path to a plugin.
     void updateWatches();
     [[nodiscard]] QStringList searchRoots() const;
+
+    // The plugin directory a watched path belongs to, empty for config/search-root paths.
+    [[nodiscard]] QString ownerForWatchPath(const QString& path) const;
 
     // The config file's current bytes. Nullopt when the file is missing or cannot be read, which
     // is different from an empty file and must not be mistaken for one of our own writes.
@@ -198,6 +236,14 @@ private:
     // The id cannot be used: it changes when the author edits name/author in the manifest.
     QHash<QString, PluginRecord> m_records;
     int m_entryPointsRevision = 0;
+    QVariantMap m_scanStats;
+
+    // Watcher bookkeeping: which plugin owns each watched path, and what the current events asked
+    // for. The reload timer coalesces a burst (one save can touch several paths) into one pass.
+    QHash<QString, QString> m_watchOwners;
+    QSet<QString> m_dirtyDirs;
+    bool m_configDirty = false;
+    bool m_discoveryDirty = false;
 
     QProcess* m_installProcess = nullptr;
     QTimer* m_installTimeout;

@@ -37,6 +37,20 @@ QRegularExpression importPattern(const QString& uri, bool withSubmodules = false
         QRegularExpression::MultilineOption);
 }
 
+// The inputs of checkImports that are not the file's own bytes. When this signature matches the
+// one a stamp was made with, the cached warnings are still valid and the file need not be read.
+QByteArray importContext(const QString& uri, const QStringList& siblings, const QStringList& otherUris) {
+    auto others = otherUris;
+    others.sort();
+
+    QByteArray context = uri.toUtf8();
+    context.append('\n');
+    context.append(siblings.join(u'\n').toUtf8());
+    context.append('\n');
+    context.append(others.join(u'\n').toUtf8());
+    return context;
+}
+
 } // namespace
 
 PluginModule::PluginModule(QString dir, QString uri)
@@ -78,19 +92,31 @@ QByteArray PluginModule::fingerprint() const {
     return m_fingerprint;
 }
 
-void PluginModule::scan(const QStringList& otherUris) {
+void PluginModule::scan(const QStringList& otherUris, PluginModuleStamps& stamps, PluginModuleScanStats* stats) {
     m_types.clear();
     m_warnings.clear();
     m_watchPaths.clear();
 
     QByteArray data;
     QSet<QString> visited;
-    scanDir(m_dir, m_uri, otherUris, data, visited, 0);
+    QSet<QString> seenFiles;
+    scanDir(m_dir, m_uri, otherUris, data, visited, 0, stamps, seenFiles, stats);
+
+    // Files that left the tree must not keep a stamp: a file that comes back with the same mtime
+    // and size after being replaced would otherwise be served stale.
+    for (auto it = stamps.begin(); it != stamps.end();) {
+        if (it.key().startsWith(m_dir + u'/') && !seenFiles.contains(it.key()))
+            it = stamps.erase(it);
+        else
+            ++it;
+    }
+
     m_fingerprint = QCryptographicHash::hash(data, QCryptographicHash::Sha1);
 }
 
 void PluginModule::scanDir(const QString& path, const QString& uri, const QStringList& otherUris, QByteArray& data,
-    QSet<QString>& visited, int depth) {
+    QSet<QString>& visited, int depth, PluginModuleStamps& stamps, QSet<QString>& seenFiles,
+    PluginModuleScanStats* stats) {
     const QDir dir(path);
     const auto relativeDir = path == m_dir ? QStringLiteral(".") : QDir(m_dir).relativeFilePath(path);
 
@@ -156,33 +182,64 @@ void PluginModule::scanDir(const QString& path, const QString& uri, const QStrin
         if (!file.endsWith(QStringLiteral(".qml"))) // Only QML files are tracked
             continue;
 
-        QFile qml(filePath);
-        if (!qml.open(QIODevice::ReadOnly)) {
-            m_warnings.append(QStringLiteral("%1: failed to read file; %2").arg(relative, qml.errorString()));
-            continue;
-        }
+        const QFileInfo info(filePath);
+        const auto mtimeMs = info.lastModified().toMSecsSinceEpoch();
+        const auto size = info.size();
+        const auto context = importContext(uri, siblings, otherUris);
 
-        const auto bytes = qml.readAll();
-        qml.close();
+        auto stamp = stamps.constFind(filePath);
+        QByteArray hash;
+        bool singleton = false;
+        QStringList fileWarnings;
+
+        if (stamp != stamps.cend() && stamp->mtimeMs == mtimeMs && stamp->size == size && stamp->context == context) {
+            hash = stamp->hash;
+            singleton = stamp->singleton;
+            fileWarnings = stamp->warnings;
+
+            if (stats)
+                ++stats->filesReused;
+        } else {
+            QFile qml(filePath);
+            if (!qml.open(QIODevice::ReadOnly)) {
+                m_warnings.append(QStringLiteral("%1: failed to read file; %2").arg(relative, qml.errorString()));
+                continue;
+            }
+
+            const auto bytes = qml.readAll();
+            qml.close();
+
+            hash = QCryptographicHash::hash(bytes, QCryptographicHash::Sha1);
+
+            const auto content = QString::fromUtf8(bytes);
+            singleton = hasSingletonPragma(content);
+            fileWarnings = checkImports(filePath, uri, content, siblings, otherUris);
+
+            stamps.insert(filePath, PluginModuleFileStamp{ mtimeMs, size, hash, singleton, context, fileWarnings });
+
+            if (stats)
+                ++stats->filesRead;
+        }
 
         // Entry points are loaded by URL, so even a file that is not a type has to reload
         m_watchPaths.append(filePath);
+        seenFiles.insert(filePath);
+
         data.append(relative.toUtf8());
         data.append('\0');
-        data.append(QCryptographicHash::hash(bytes, QCryptographicHash::Sha1));
+        data.append(hash);
         data.append('\0');
 
-        const auto content = QString::fromUtf8(bytes);
-        const auto name = QFileInfo(file).completeBaseName();
+        m_warnings.append(fileWarnings);
 
-        checkImports(filePath, uri, content, siblings, otherUris);
+        const auto name = QFileInfo(file).completeBaseName();
 
         // Qt only treats an uppercase base name as a type name; everything else can still be an
         // entry point or a Qt.createComponent target, but it cannot be registered.
         if (name.isEmpty() || !name.front().isUpper())
             continue;
 
-        m_types.append({ uri, name, filePath, hasSingletonPragma(content) });
+        m_types.append({ uri, name, filePath, singleton });
     }
 
     const auto subdirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
@@ -199,26 +256,28 @@ void PluginModule::scanDir(const QString& path, const QString& uri, const QStrin
             continue;
         }
 
-        scanDir(dir.absoluteFilePath(subdir), uri + u'.' + subdir, otherUris, data, visited, depth + 1);
+        scanDir(dir.absoluteFilePath(subdir), uri + u'.' + subdir, otherUris, data, visited, depth + 1, stamps,
+            seenFiles, stats);
     }
 }
 
-void PluginModule::checkImports(const QString& path, const QString& uri, const QString& content,
-    const QStringList& siblings, const QStringList& otherUris) {
+QStringList PluginModule::checkImports(const QString& path, const QString& uri, const QString& content,
+    const QStringList& siblings, const QStringList& otherUris) const {
     const auto relative = QDir(m_dir).relativeFilePath(path);
+    QStringList warnings;
 
     for (const auto& other : otherUris) {
         if (!importPattern(other, true).match(content).hasMatch())
             continue;
 
-        m_warnings.append(
+        warnings.append(
             QStringLiteral("%1: cross-plugin imports are not supported; they will be available in a future update.")
                 .arg(relative));
     }
 
     const auto hasSelfImport = importPattern(uri).match(content).hasMatch();
     if (hasSelfImport || siblings.size() < 2)
-        return;
+        return warnings;
 
     QStringList used;
     for (const auto& sibling : siblings) {
@@ -231,8 +290,10 @@ void PluginModule::checkImports(const QString& path, const QString& uri, const Q
     }
 
     if (!used.isEmpty())
-        m_warnings.append(QStringLiteral("%1: implicit imports are disabled. To use %2, import '%3' explicitly.")
+        warnings.append(QStringLiteral("%1: implicit imports are disabled. To use %2, import '%3' explicitly.")
                 .arg(relative, used.join(u'/'), uri));
+
+    return warnings;
 }
 
 void PluginModule::registerTypes(int generation) const {

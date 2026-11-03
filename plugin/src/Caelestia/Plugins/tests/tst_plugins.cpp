@@ -129,6 +129,8 @@ private slots:
     void configKeepsStateOnBrokenJson();
     void configSavesJsonObject();
     void reloadPluginBumpsGeneration();
+    void rescanOnlyTouchesTheEditedPlugin();
+    void rewriteWithSameContentKeepsGeneration();
 
     void installRejectsIdMismatch();
     void installRejectsMissingRepository();
@@ -591,6 +593,129 @@ void TestPlugins::reloadPluginBumpsGeneration() {
 
     // Unknown ids warn instead of crashing
     plugins.reloadPlugin(QStringLiteral("nobody/nothing"));
+}
+
+namespace {
+
+// Generation and counters of the first pass the watcher triggers after a file edit. Watches are
+// collected rather than read from the property, since the burst that follows one save can produce
+// a second pass whose counters would hide the one the test is about.
+struct WatcherPass {
+    QList<QVariantMap> passes;
+
+    explicit WatcherPass(Plugins& plugins) {
+        QObject::connect(&plugins, &Plugins::scanStatsChanged, &plugins, [this, &plugins] {
+            if (plugins.scanStats().value(QStringLiteral("trigger")).toString() == QStringLiteral("watch"))
+                passes.append(plugins.scanStats());
+        });
+    }
+
+    [[nodiscard]] QVariantMap first() const { return passes.value(0); }
+};
+
+} // namespace
+
+void TestPlugins::rescanOnlyTouchesTheEditedPlugin() {
+    const auto aId = QStringLiteral("author/alpha");
+    const auto bId = QStringLiteral("author/beta");
+
+    for (const auto& name : { QStringLiteral("alpha"), QStringLiteral("beta") }) {
+        const auto dir = dataDir() + QLatin1Char('/') + name;
+        QDir().mkpath(dir);
+        writeFile(dir + QStringLiteral("/manifest.json"),
+            QStringLiteral(
+                R"({"name":"%1","author":"author","entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})")
+                .arg(name)
+                .toUtf8());
+        writeFile(dir + QStringLiteral("/W.qml"), "import QtQuick\n\nItem {}\n");
+        writeFile(dir + QStringLiteral("/Extra.qml"), "import QtQuick\n\nItem {}\n");
+    }
+
+    writeFile(configPath(), R"({"enabled":["author/alpha","author/beta"]})");
+
+    Plugins plugins;
+    plugins.componentComplete();
+
+    PluginManifest* alpha = nullptr;
+    PluginManifest* beta = nullptr;
+    for (const auto& entry : plugins.plugins()) {
+        auto* const candidate = entry.value<PluginManifest*>();
+        if (!candidate)
+            continue;
+        if (candidate->id() == aId)
+            alpha = candidate;
+        else if (candidate->id() == bId)
+            beta = candidate;
+    }
+
+    QVERIFY(alpha);
+    QVERIFY(beta);
+
+    const int alphaBefore = alpha->generation();
+    const int betaBefore = beta->generation();
+    QVERIFY(alphaBefore > 0);
+    QVERIFY(betaBefore > 0);
+
+    WatcherPass pass(plugins);
+
+    // One plugin's file moves; the other must not be scanned at all
+    writeFile(dataDir() + QStringLiteral("/beta/W.qml"), "import QtQuick\n\nItem {\n    property int x: 1\n}\n");
+
+    QTRY_VERIFY_WITH_TIMEOUT(!pass.passes.isEmpty(), 5000);
+
+    const auto first = pass.first();
+    QCOMPARE(first.value(QStringLiteral("modulesScanned")).toInt(), 1);
+    QCOMPARE(first.value(QStringLiteral("scanned")).toStringList(), QStringList{ bId });
+    QCOMPARE(first.value(QStringLiteral("filesRead")).toInt(), 1);
+    QCOMPARE(first.value(QStringLiteral("filesReused")).toInt(), 1);
+
+    QVERIFY(beta->generation() > betaBefore);
+    QCOMPARE(alpha->generation(), alphaBefore);
+}
+
+void TestPlugins::rewriteWithSameContentKeepsGeneration() {
+    const auto id = QStringLiteral("author/touch");
+    const auto dir = dataDir() + QStringLiteral("/touch");
+    QDir().mkpath(dir);
+    writeFile(dir + QStringLiteral("/manifest.json"),
+        R"({"name":"touch","author":"author","entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    writeFile(dir + QStringLiteral("/W.qml"), "import QtQuick\n\nItem {}\n");
+    writeFile(configPath(), R"({"enabled":["author/touch"]})");
+
+    Plugins plugins;
+    plugins.componentComplete();
+
+    PluginManifest* manifest = nullptr;
+    for (const auto& entry : plugins.plugins()) {
+        auto* const candidate = entry.value<PluginManifest*>();
+        if (candidate && candidate->id() == id)
+            manifest = candidate;
+    }
+
+    QVERIFY(manifest);
+    const int before = manifest->generation();
+    QVERIFY(before > 0);
+
+    WatcherPass pass(plugins);
+
+    // Same bytes, newer mtime. The stamp misses, so the file is read again, but the hash matches
+    // the one in the fingerprint and re-registering would be a no-op.
+    const auto path = dir + QStringLiteral("/W.qml");
+    writeFile(path, "import QtQuick\n\nItem {}\n");
+
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadWrite));
+    QVERIFY(file.setFileTime(QDateTime::currentDateTime().addSecs(2), QFileDevice::FileModificationTime));
+    file.close();
+
+    QTRY_VERIFY_WITH_TIMEOUT(!pass.passes.isEmpty(), 5000);
+
+    const auto first = pass.first();
+    QCOMPARE(first.value(QStringLiteral("scanned")).toStringList(), QStringList{ id });
+    QCOMPARE(first.value(QStringLiteral("filesRead")).toInt(), 1);
+    QCOMPARE(first.value(QStringLiteral("filesReused")).toInt(), 0);
+
+    QCOMPARE(manifest->generation(), before);
 }
 
 void TestPlugins::entryPointErrorsAreTracked() {

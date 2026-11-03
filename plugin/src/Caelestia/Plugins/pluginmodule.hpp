@@ -1,12 +1,37 @@
 #pragma once
 
 #include <qbytearray.h>
+#include <qhash.h>
 #include <qlist.h>
 #include <qset.h>
 #include <qstring.h>
 #include <qstringlist.h>
 
 namespace caelestia::plugins {
+
+// What a scan remembers about one file, so an untouched file costs a stat instead of a read,
+// a SHA-1 and an import check. Removed by the next scan that does not visit the file.
+struct PluginModuleFileStamp {
+    qint64 mtimeMs = 0;
+    qint64 size = -1;
+    QByteArray hash;
+
+    // Parsed out of the content, so a reused stamp still yields the same type metadata.
+    bool singleton = false;
+
+    // Everything besides the file's own bytes that changes the import warnings: the module URI,
+    // the sibling type names of its directory and the other plugins' root URIs.
+    QByteArray context;
+    QStringList warnings;
+};
+
+using PluginModuleStamps = QHash<QString, PluginModuleFileStamp>;
+
+// How much of a scan was served from the stamps above; feeds the rescan counters.
+struct PluginModuleScanStats {
+    int filesRead = 0;
+    int filesReused = 0;
+};
 
 // A single QML type discovered in a plugin's directory tree.
 struct PluginModuleType {
@@ -37,7 +62,9 @@ public:
     // Walks the tree collecting its types, the warnings its layout earns and a fingerprint of
     // everything a reload depends on. `otherUris` holds the other plugins' root URIs so cross
     // plugin imports, which per plugin generations cannot keep consistent, can be flagged.
-    void scan(const QStringList& otherUris);
+    // `stamps` is the caller's per-file cache: it survives module recreation, so a rescan of a
+    // plugin whose files did not move only stats them.
+    void scan(const QStringList& otherUris, PluginModuleStamps& stamps, PluginModuleScanStats* stats = nullptr);
 
     // Registers every discovered type, with `generation` in each URL's query so the engine
     // compiles the file again instead of handing back the unit it cached for the last one. Must
@@ -58,9 +85,12 @@ public:
 
 private:
     void scanDir(const QString& path, const QString& uri, const QStringList& otherUris, QByteArray& data,
-        QSet<QString>& visited, int depth);
-    void checkImports(const QString& path, const QString& uri, const QString& content, const QStringList& siblings,
-        const QStringList& otherUris);
+        QSet<QString>& visited, int depth, PluginModuleStamps& stamps, QSet<QString>& seenFiles,
+        PluginModuleScanStats* stats);
+
+    // Returns the warnings this file earns; they are cached with the file's stamp.
+    [[nodiscard]] QStringList checkImports(const QString& path, const QString& uri, const QString& content,
+        const QStringList& siblings, const QStringList& otherUris) const;
 
     QString m_dir;
     QString m_uri;
