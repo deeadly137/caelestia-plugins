@@ -311,20 +311,27 @@ void Plugins::setPluginEnabled(const QString& pluginId, bool enabled) {
     setEnabled(next);
 }
 
-QList<EntryPoint> Plugins::__entryPoints(EntryPointType::Type type) const {
-    QList<EntryPoint> result;
+void Plugins::rebuildEntryPointCache() const {
+    m_entryPointsByType.clear();
 
     for (const auto* plugin : std::as_const(m_plugins)) {
         if (!plugin->valid() || !plugin->enabled())
             continue;
 
-        const auto entryPoints = plugin->entryPoints();
-        for (const auto& entryPoint : entryPoints)
-            if (entryPoint.type() == type)
-                result.append(entryPoint);
+        for (const auto& entryPoint : plugin->entryPoints())
+            m_entryPointsByType[int(entryPoint.type())].append(entryPoint);
     }
 
-    return result;
+    m_entryPointCacheRevision = m_entryPointsRevision;
+}
+
+QList<EntryPoint> Plugins::__entryPoints(EntryPointType::Type type) const {
+    // Anything that can change the flattened set bumps the revision, so comparing it is enough to
+    // know the cached lists are still the answer.
+    if (m_entryPointCacheRevision != m_entryPointsRevision)
+        rebuildEntryPointCache();
+
+    return m_entryPointsByType.value(int(type));
 }
 
 void Plugins::reload() {

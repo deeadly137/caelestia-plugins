@@ -129,6 +129,7 @@ private slots:
     void configKeepsStateOnBrokenJson();
     void configSavesJsonObject();
     void reloadPluginBumpsGeneration();
+    void entryPointsFollowPluginChanges();
     void rescanOnlyTouchesTheEditedPlugin();
     void rewriteWithSameContentKeepsGeneration();
 
@@ -593,6 +594,44 @@ void TestPlugins::reloadPluginBumpsGeneration() {
 
     // Unknown ids warn instead of crashing
     plugins.reloadPlugin(QStringLiteral("nobody/nothing"));
+}
+
+void TestPlugins::entryPointsFollowPluginChanges() {
+    const auto id = QStringLiteral("author/points");
+    const auto dir = dataDir() + QStringLiteral("/points");
+    QDir().mkpath(dir);
+    writeFile(dir + QStringLiteral("/manifest.json"),
+        R"({"name":"points","author":"author","entryPoints":[
+            {"type":"bar-entry","source":"B.qml","properties":{"name":"bar"}},
+            {"type":"status-icon","source":"S.qml","properties":{"name":"status"}}
+        ]})");
+    writeFile(dir + QStringLiteral("/B.qml"), "import QtQuick\n\nItem {}\n");
+    writeFile(dir + QStringLiteral("/S.qml"), "import QtQuick\n\nItem {}\n");
+    writeFile(configPath(), R"({"enabled":["author/points"]})");
+
+    Plugins plugins;
+    plugins.componentComplete();
+
+    QCOMPARE(plugins.__entryPoints(EntryPointType::BarEntry).size(), 1);
+    QCOMPARE(
+        plugins.__entryPoints(EntryPointType::BarEntry).first().properties().value(QStringLiteral("name")).toString(),
+        QStringLiteral("bar"));
+    QCOMPARE(plugins.__entryPoints(EntryPointType::StatusIcon).size(), 1);
+
+    // The lists are cached per revision, so an edited manifest has to be visible to the next call
+    writeFile(dir + QStringLiteral("/manifest.json"),
+        R"({"name":"points","author":"author","entryPoints":[
+            {"type":"status-icon","source":"S.qml","properties":{"name":"status"}},
+            {"type":"status-icon","source":"B.qml","properties":{"name":"status2"}}
+        ]})");
+    plugins.reloadPlugin(id);
+
+    QCOMPARE(plugins.__entryPoints(EntryPointType::BarEntry).size(), 0);
+    QCOMPARE(plugins.__entryPoints(EntryPointType::StatusIcon).size(), 2);
+
+    // Disabling drops them without touching the files
+    plugins.setPluginEnabled(id, false);
+    QCOMPARE(plugins.__entryPoints(EntryPointType::StatusIcon).size(), 0);
 }
 
 namespace {

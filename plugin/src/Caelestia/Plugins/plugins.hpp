@@ -94,7 +94,9 @@ public:
     [[nodiscard]] QString installError() const;
     [[nodiscard]] QString removeError() const;
 
-    // Flattened entry points of the given type across all enabled + valid plugins.
+    // Flattened entry points of the given type across all enabled + valid plugins. Served from a
+    // cache that is rebuilt whenever entryPointsRevision moves, since every bar section, popout
+    // and Nexus panel asks for its own type on each change.
     Q_INVOKABLE QList<EntryPoint> __entryPoints(caelestia::plugins::EntryPointType::Type type) const;
 
     Q_INVOKABLE void setPluginEnabled(const QString& pluginId, bool enabled);
@@ -213,6 +215,10 @@ private:
     [[nodiscard]] QList<PluginManifest*> loadedManifests() const;
     void bumpEntryPointsRevision();
 
+    // Fills the per type lists from the current plugin set. Cheap, but not worth repeating for
+    // every region: the revision it was built at is remembered next to it.
+    void rebuildEntryPointCache() const;
+
     QString m_configPath;
     QFileSystemWatcher* m_watcher;
     QTimer* m_saveTimer;
@@ -236,6 +242,12 @@ private:
     // The id cannot be used: it changes when the author edits name/author in the manifest.
     QHash<QString, PluginRecord> m_records;
     int m_entryPointsRevision = 0;
+
+    // Entry points of each type, valid at m_entryPointCacheRevision. Mutable because the getter
+    // is const while the cache is a lazily filled detail.
+    mutable QHash<int, QList<EntryPoint>> m_entryPointsByType;
+    mutable int m_entryPointCacheRevision = -1;
+
     QVariantMap m_scanStats;
 
     // Watcher bookkeeping: which plugin owns each watched path, and what the current events asked
