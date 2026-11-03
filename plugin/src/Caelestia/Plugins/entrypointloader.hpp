@@ -26,6 +26,8 @@ class EntryPointLoader : public QQuickItem {
     Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
     // The loaded object, null until it has finished loading
     Q_PROPERTY(QObject* item READ item NOTIFY itemChanged)
+    // The loader's state. Stays Ready while a swap-compile is in flight, because the previous
+    // object is still the live one.
     Q_PROPERTY(caelestia::plugins::EntryPointLoader::Status status READ status NOTIFY statusChanged)
 
 public:
@@ -72,11 +74,31 @@ private slots:
     void updateImplicitSize();
 
 private:
-    void reload();
-    void clear();
+    // What happens to the object that is currently loaded when a new one has to be loaded.
+    enum class Handover {
+        // Destroy it before compiling. Used when the entry point or source itself changed, so the
+        // old object is simply wrong, and for custom services, where two copies would both act on
+        // the shell (timers, hooks, IPC targets) even for a moment.
+        DropFirst,
+        // Leave it live until the replacement has been created, then retire it. Used for a plugin
+        // generation bump: a compile takes long enough that blanking a bar item or a desktop
+        // widget would be visible.
+        SwapWhenReady,
+    };
+
+    void reload(Handover handover = Handover::DropFirst);
     void create();
     void setStatus(Status status);
     void warnComponentErrors() const;
+    [[nodiscard]] bool canSwap() const;
+
+    // Drops the component of an in-flight or finished compile without touching the live object.
+    void discardComponent();
+
+    // Calls the object's `onUnload()` hook, detaches it and schedules its destruction. `notify`
+    // tells QML the item is gone; a swap skips that and emits itemChanged once, after the
+    // replacement is installed.
+    void retireObject(bool notify);
 
     // Surfaces failures on the plugin so the Nexus detail page can show them, keyed by this
     // loader instance so several live copies of one entry point each keep their own message.

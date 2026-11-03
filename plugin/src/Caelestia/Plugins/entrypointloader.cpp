@@ -31,7 +31,7 @@ void EntryPointLoader::componentComplete() {
     QQuickItem::componentComplete();
 
     m_complete = true;
-    reload();
+    reload(Handover::DropFirst);
 }
 
 EntryPoint EntryPointLoader::entryPoint() const {
@@ -51,7 +51,9 @@ void EntryPointLoader::setEntryPoint(const EntryPoint& entryPoint) {
     if (source() != oldSource)
         emit sourceChanged();
 
-    reload();
+    // A different entry point (or one whose properties moved) is not a reload of this one, so the
+    // loaded object has to go before the new one is compiled.
+    reload(Handover::DropFirst);
 }
 
 void EntryPointLoader::resetEntryPoint() {
@@ -74,7 +76,15 @@ void EntryPointLoader::trackPlugin() {
 
 void EntryPointLoader::onGenerationChanged() {
     emit sourceChanged();
-    reload();
+
+    // A plugin edit reloads in place. Visual entry points keep showing the previous version until
+    // the replacement exists; a custom service is stopped first, since its timers, hooks and IPC
+    // targets must not run twice.
+    reload(canSwap() ? Handover::SwapWhenReady : Handover::DropFirst);
+}
+
+bool EntryPointLoader::canSwap() const {
+    return m_object && m_entryPoint.type() != EntryPointType::Custom;
 }
 
 QString EntryPointLoader::source() const {
@@ -90,7 +100,7 @@ void EntryPointLoader::setSource(const QString& source) {
     m_source = source;
     emit sourceChanged();
 
-    reload();
+    reload(Handover::DropFirst);
 }
 
 QObject* EntryPointLoader::item() const {
@@ -109,9 +119,18 @@ void EntryPointLoader::onComponentStatusChanged(QQmlComponent::Status status) {
         create();
     else if (status == QQmlComponent::Error) {
         warnComponentErrors();
-        setStatus(Error);
-    } else
-        setStatus(Null);
+        discardComponent();
+
+        // A failed swap leaves the previous version on screen: it is still the last thing that
+        // worked, and the failure is already recorded on the plugin for the Problems list.
+        if (!m_object)
+            setStatus(Error);
+    } else {
+        discardComponent();
+
+        if (!m_object)
+            setStatus(Null);
+    }
 }
 
 void EntryPointLoader::updateSize() {
@@ -124,11 +143,48 @@ void EntryPointLoader::updateImplicitSize() {
     setImplicitHeight(m_item ? m_item->implicitHeight() : 0);
 }
 
-void EntryPointLoader::reload() {
+void EntryPointLoader::discardComponent() {
+    if (!m_component)
+        return;
+
+    // The connection is cut first: the component stays alive until the event loop gets to the
+    // deferred deletion, and a compile that finishes in the meantime must not create an object
+    // that belongs to a reload this loader has already abandoned.
+    QObject::disconnect(m_component, nullptr, this, nullptr);
+    m_component->deleteLater();
+    m_component = nullptr;
+}
+
+void EntryPointLoader::retireObject(bool notify) {
+    if (!m_object)
+        return;
+
+    invokeUnload();
+
+    if (m_item) {
+        QObject::disconnect(m_item, nullptr, this, nullptr);
+        m_item->setParentItem(nullptr);
+        m_item = nullptr;
+        updateImplicitSize();
+    }
+
+    // Deferred, so an onUnload() implementation can finish its own stack before the object goes
+    m_object->deleteLater();
+    m_object = nullptr;
+
+    if (notify)
+        emit itemChanged();
+}
+
+void EntryPointLoader::reload(Handover handover) {
     if (!m_complete)
         return;
 
-    clear();
+    if (handover == Handover::DropFirst)
+        retireObject(true);
+
+    // Whatever compile was in flight belongs to the previous request
+    discardComponent();
 
     const auto error = m_entryPoint.error();
     if (!error.isEmpty()) {
@@ -156,55 +212,41 @@ void EntryPointLoader::reload() {
     // explicitly set source is a path that has to be resolved against this loader's own file.
     const QUrl url(src);
     m_component = new QQmlComponent(
-        context->engine(), url.isRelative() ? context->resolvedUrl(url) : url, QQmlComponent::PreferSynchronous, this);
+        context->engine(), url.isRelative() ? context->resolvedUrl(url) : url, QQmlComponent::Asynchronous, this);
 
-    // Creating the component inline keeps the whole fan-out of a generation bump synchronous, so
-    // no loader can observe a half updated set of module registrations.
+    // Creation stays on this thread and synchronous once the compile lands, so a plugin never has
+    // half of its objects on one registration set and half on the next one.
     if (m_component->isLoading()) {
-        setStatus(Loading);
+        // A live object already is valid content; announcing Loading would claim otherwise
+        if (!m_object)
+            setStatus(Loading);
         QObject::connect(m_component, &QQmlComponent::statusChanged, this, &EntryPointLoader::onComponentStatusChanged);
     } else
         onComponentStatusChanged(m_component->status());
 }
 
-void EntryPointLoader::clear() {
-    clearFailure();
-    invokeUnload();
-
-    if (m_object) {
-        if (m_item) {
-            QObject::disconnect(m_item, nullptr, this, nullptr);
-            m_item->setParentItem(nullptr);
-            m_item = nullptr;
-            updateImplicitSize();
-        }
-
-        m_object->deleteLater();
-        m_object = nullptr;
-        emit itemChanged();
-    }
-
-    if (m_component) {
-        m_component->deleteLater();
-        m_component = nullptr;
-    }
-}
-
 void EntryPointLoader::create() {
-    // Catches any future path that manages to cache a URL: the whole scheme rests on every URL
-    // being derived from the plugin's one current generation at the moment it is needed.
+    // The revision barrier. A compile takes long enough that the plugin can be edited again before
+    // it lands, and type registrations are global: the imports this unit just resolved may belong
+    // to a newer generation than the URL it is filed under. Recompiling is the only way to get a
+    // unit that is consistent with its URL.
     if (m_source.isEmpty() && m_plugin) {
         const auto gen = QUrlQuery(m_component->url()).queryItemValue(QStringLiteral("gen")).toInt();
-        if (gen != m_plugin->generation())
-            qCWarning(lcEntryPointLoader)
-                << "Loading" << m_component->url() << "at generation" << gen << "but" << m_plugin->id()
-                << "is at generation" << m_plugin->generation() << "- a stale URL was cached somewhere";
+        if (gen != m_plugin->generation()) {
+            qCDebug(lcEntryPointLoader) << "Discarding" << m_component->url() << "compiled at generation" << gen
+                                        << "but" << m_plugin->id() << "is now at generation" << m_plugin->generation();
+            reload(canSwap() ? Handover::SwapWhenReady : Handover::DropFirst);
+            return;
+        }
     }
 
     auto* const object = m_component->beginCreate(qmlContext(this));
     if (!object) {
         warnComponentErrors();
-        setStatus(Error);
+        discardComponent();
+
+        if (!m_object)
+            setStatus(Error);
         return;
     }
 
@@ -218,9 +260,16 @@ void EntryPointLoader::create() {
     if (m_component->isError()) {
         warnComponentErrors();
         delete object;
-        setStatus(Error);
+        discardComponent();
+
+        if (!m_object)
+            setStatus(Error);
         return;
     }
+
+    // The replacement exists, so the previous version can go. On a swap this is the handover
+    // point: both objects have been created, only the new one survives.
+    retireObject(false);
 
     m_object = object;
     QQmlEngine::setObjectOwnership(m_object, QQmlEngine::CppOwnership);
@@ -293,7 +342,6 @@ bool EntryPointLoader::declaresProperty(const QObject* object, const QString& na
 
 QVariantMap EntryPointLoader::injectedProperties(const QObject* object) const {
     QVariantMap properties;
-    const auto* const meta = object->metaObject();
 
     // Manifest `properties` are initial values for properties the entry point actually declares.
     // Injecting only declared names keeps a typo in a manifest from adding junk dynamic
