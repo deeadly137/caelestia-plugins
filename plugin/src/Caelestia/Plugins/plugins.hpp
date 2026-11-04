@@ -191,7 +191,8 @@ private:
     // set), refreshes its warnings, and bumps the generation of each one whose fingerprint moved.
     // A plugin that is invalid or disabled has its record cleared instead, so it is neither
     // registered nor watched until it comes back.
-    void updateModules(bool force = false, const QSet<QString>& dirty = {}, ScanCounters* counters = nullptr);
+    void updateModules(bool force = false, const QSet<QString>& dirty = {}, ScanCounters* counters = nullptr,
+        const QSet<QString>& changed = {});
 
     void onWatchEvent(const QString& path);
 
@@ -248,12 +249,21 @@ private:
     mutable QHash<int, QList<EntryPoint>> m_entryPointsByType;
     mutable int m_entryPointCacheRevision = -1;
 
+    // Every type name ever registered, per module URI. Never cleared: Qt cannot unregister a type,
+    // so this is the only record of what is still resolvable after a file is removed or renamed.
+    // Also survives the plugin being uninstalled, which is what makes a reinstall comparable.
+    QHash<QString, QSet<QString>> m_registeredTypes;
+
     QVariantMap m_scanStats;
 
     // Watcher bookkeeping: which plugin owns each watched path, and what the current events asked
     // for. The reload timer coalesces a burst (one save can touch several paths) into one pass.
     QHash<QString, QString> m_watchOwners;
     QSet<QString> m_dirtyDirs;
+
+    // Files the watcher named since the last pass. They are always read again: mtime plus size
+    // cannot tell two saves in the same millisecond apart.
+    QSet<QString> m_changedFiles;
     bool m_configDirty = false;
     bool m_discoveryDirty = false;
 

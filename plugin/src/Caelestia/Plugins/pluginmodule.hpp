@@ -63,8 +63,11 @@ public:
     // everything a reload depends on. `otherUris` holds the other plugins' root URIs so cross
     // plugin imports, which per plugin generations cannot keep consistent, can be flagged.
     // `stamps` is the caller's per-file cache: it survives module recreation, so a rescan of a
-    // plugin whose files did not move only stats them.
-    void scan(const QStringList& otherUris, PluginModuleStamps& stamps, PluginModuleScanStats* stats = nullptr);
+    // plugin whose files did not move only stats them. An mtime and size match is not proof of
+    // identical content when two saves land in the same millisecond, so `changed` holds the paths
+    // the watcher reported and those are always read again.
+    void scan(const QStringList& otherUris, PluginModuleStamps& stamps, PluginModuleScanStats* stats = nullptr,
+        const QSet<QString>& changed = {});
 
     // Registers every discovered type, with `generation` in each URL's query so the engine
     // compiles the file again instead of handing back the unit it cached for the last one. Must
@@ -86,7 +89,7 @@ public:
 private:
     void scanDir(const QString& path, const QString& uri, const QStringList& otherUris, QByteArray& data,
         QSet<QString>& visited, int depth, PluginModuleStamps& stamps, QSet<QString>& seenFiles,
-        PluginModuleScanStats* stats);
+        PluginModuleScanStats* stats, const QSet<QString>& changed);
 
     // Returns the warnings this file earns; they are cached with the file's stamp.
     [[nodiscard]] QStringList checkImports(const QString& path, const QString& uri, const QString& content,

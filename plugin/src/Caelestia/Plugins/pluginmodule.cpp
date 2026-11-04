@@ -92,7 +92,8 @@ QByteArray PluginModule::fingerprint() const {
     return m_fingerprint;
 }
 
-void PluginModule::scan(const QStringList& otherUris, PluginModuleStamps& stamps, PluginModuleScanStats* stats) {
+void PluginModule::scan(const QStringList& otherUris, PluginModuleStamps& stamps, PluginModuleScanStats* stats,
+    const QSet<QString>& changed) {
     m_types.clear();
     m_warnings.clear();
     m_watchPaths.clear();
@@ -100,7 +101,7 @@ void PluginModule::scan(const QStringList& otherUris, PluginModuleStamps& stamps
     QByteArray data;
     QSet<QString> visited;
     QSet<QString> seenFiles;
-    scanDir(m_dir, m_uri, otherUris, data, visited, 0, stamps, seenFiles, stats);
+    scanDir(m_dir, m_uri, otherUris, data, visited, 0, stamps, seenFiles, stats, changed);
 
     // Files that left the tree must not keep a stamp: a file that comes back with the same mtime
     // and size after being replaced would otherwise be served stale.
@@ -116,7 +117,7 @@ void PluginModule::scan(const QStringList& otherUris, PluginModuleStamps& stamps
 
 void PluginModule::scanDir(const QString& path, const QString& uri, const QStringList& otherUris, QByteArray& data,
     QSet<QString>& visited, int depth, PluginModuleStamps& stamps, QSet<QString>& seenFiles,
-    PluginModuleScanStats* stats) {
+    PluginModuleScanStats* stats, const QSet<QString>& changed) {
     const QDir dir(path);
     const auto relativeDir = path == m_dir ? QStringLiteral(".") : QDir(m_dir).relativeFilePath(path);
 
@@ -192,7 +193,10 @@ void PluginModule::scanDir(const QString& path, const QString& uri, const QStrin
         bool singleton = false;
         QStringList fileWarnings;
 
-        if (stamp != stamps.cend() && stamp->mtimeMs == mtimeMs && stamp->size == size && stamp->context == context) {
+        // A path the watcher named is read even when the stat matches: two writes in the same
+        // millisecond with the same length differ in content while agreeing on both fields.
+        if (stamp != stamps.cend() && !changed.contains(filePath) && stamp->mtimeMs == mtimeMs && stamp->size == size &&
+            stamp->context == context) {
             hash = stamp->hash;
             singleton = stamp->singleton;
             fileWarnings = stamp->warnings;
@@ -257,7 +261,7 @@ void PluginModule::scanDir(const QString& path, const QString& uri, const QStrin
         }
 
         scanDir(dir.absoluteFilePath(subdir), uri + u'.' + subdir, otherUris, data, visited, depth + 1, stamps,
-            seenFiles, stats);
+            seenFiles, stats, changed);
     }
 }
 

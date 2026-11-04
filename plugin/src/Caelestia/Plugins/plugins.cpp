@@ -346,20 +346,21 @@ void Plugins::reloadPlugin(const QString& pluginId) {
         return;
     }
 
-    // Re-read the manifest first: an edited `settings` or entry point list has to be picked up
-    // before the module fingerprint decides whether anything moved.
-    plugin->reparse();
-
     // The fingerprint normally decides whether a generation is needed. A caller asking for a
-    // reload wants one regardless, so clear it and let updateModules re-register the module.
-    // Only this plugin is rescanned: an explicit reload says nothing about the others.
+    // reload wants one regardless, so clear it and let the pass re-register the module. The
+    // stamps go too: an explicit reload is what a user reaches for when an edit did not show up,
+    // so it must not trust the stat that said the file had not moved. Only this plugin is
+    // rescanned, since an explicit reload says nothing about the others.
     QSet<QString> dirty;
     if (auto it = m_records.find(plugin->dir()); it != m_records.end()) {
         it->fingerprint.clear();
+        it->stamps.clear();
         dirty.insert(plugin->dir());
     }
 
-    updateModules(false, dirty);
+    // Through the normal pass rather than straight into updateModules, so the manifest is
+    // reparsed, the counters are filled in and the perf log has a line for the reload.
+    rescan(false, dirty, QStringLiteral("reload-plugin"));
 }
 
 PluginManifest* Plugins::manifestForId(const QString& pluginId) const {
@@ -618,7 +619,8 @@ void Plugins::rescan(bool force, const QSet<QString>& dirty, const QString& trig
     m_conflictingPlugins = conflicting;
 
     // After the id grouping, so a plugin caught in a clash registers nothing
-    updateModules(force, dirty, &counters);
+    updateModules(force, dirty, &counters, m_changedFiles);
+    m_changedFiles.clear();
 
     if (m_plugins != previousPlugins) {
         emit pluginsChanged();
@@ -661,7 +663,8 @@ void Plugins::rescan(bool force, const QSet<QString>& dirty, const QString& trig
                                      << " ms=" << elapsed.elapsed();
 }
 
-void Plugins::updateModules(bool force, const QSet<QString>& dirty, ScanCounters* counters) {
+void Plugins::updateModules(
+    bool force, const QSet<QString>& dirty, ScanCounters* counters, const QSet<QString>& changed) {
     // Every plugin's root URI, so a file importing another plugin's module can be flagged
     QStringList uris;
     for (const auto* plugin : std::as_const(m_plugins))
@@ -708,8 +711,29 @@ void Plugins::updateModules(bool force, const QSet<QString>& dirty, ScanCounters
             PluginModuleScanStats moduleStats;
 
             record.module = PluginModule(plugin->dir(), plugin->moduleUri());
-            record.module.scan(others, record.stamps, &moduleStats);
+            record.module.scan(others, record.stamps, &moduleStats, changed);
             warnings.append(record.module.warnings());
+
+            // Qt has no unregister API, so a type that disappeared from the plugin keeps its old
+            // registration (and its old file URL) until the process ends. Imports of it still
+            // resolve, then fail to compile because the file is gone, and no reload can undo that.
+            // Only a fresh shell start can, so say so when the set actually shrinks.
+            QSet<QString> types;
+            for (const auto& type : record.module.types())
+                types.insert(type.name);
+
+            auto& registered = m_registeredTypes[plugin->moduleUri()];
+            auto removedTypes = registered - types;
+            if (!removedTypes.isEmpty()) {
+                QStringList names = removedTypes.values();
+                names.sort();
+                warnings.append(QStringLiteral(
+                    "Registered QML types are gone: %1. Qt cannot unregister them, so anything still importing "
+                    "them keeps resolving to the old files and fails; restart the shell to clean this up.")
+                        .arg(names.join(QStringLiteral(", "))));
+            }
+
+            registered = types;
 
             if (counters) {
                 ++counters->modulesScanned;
@@ -1083,8 +1107,10 @@ void Plugins::onWatchEvent(const QString& path) {
         m_configDirty = true;
     } else if (!owner.isEmpty()) {
         // The common case: one plugin's file moved. Only that plugin is scanned, and only its
-        // generation is bumped if its fingerprint actually changed.
+        // generation is bumped if its fingerprint actually changed. The path is remembered so the
+        // scan reads it even if its stat still matches the stamp.
         m_dirtyDirs.insert(owner);
+        m_changedFiles.insert(path);
     } else if (path == QFileInfo(m_configPath).absolutePath()) {
         // A save of our own config rewrites the config file and touches the directory holding it.
         // Nothing to do when the bytes on disk are the ones this instance wrote.

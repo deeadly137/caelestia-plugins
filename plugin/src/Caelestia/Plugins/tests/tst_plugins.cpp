@@ -132,6 +132,9 @@ private slots:
     void entryPointsFollowPluginChanges();
     void rescanOnlyTouchesTheEditedPlugin();
     void rewriteWithSameContentKeepsGeneration();
+    void watcherRereadsAFileWhoseStatDidNotMove();
+    void fiveEntryPointsReloadWithinAFrame();
+    void removingATypeIsReportedAsUnfixable();
 
     void installRejectsIdMismatch();
     void installRejectsMissingRepository();
@@ -755,6 +758,149 @@ void TestPlugins::rewriteWithSameContentKeepsGeneration() {
     QCOMPARE(first.value(QStringLiteral("filesReused")).toInt(), 0);
 
     QCOMPARE(manifest->generation(), before);
+}
+
+void TestPlugins::watcherRereadsAFileWhoseStatDidNotMove() {
+    const auto id = QStringLiteral("author/samestat");
+    const auto dir = dataDir() + QStringLiteral("/samestat");
+    QDir().mkpath(dir);
+
+    const auto path = dir + QStringLiteral("/W.qml");
+    const QByteArray first = "import QtQuick\n\nItem { property int a: 1 }\n";
+    const QByteArray second = "import QtQuick\n\nItem { property int a: 2 }\n";
+    QCOMPARE(first.size(), second.size());
+
+    writeFile(dir + QStringLiteral("/manifest.json"),
+        R"({"name":"samestat","author":"author","entryPoints":[{"type":"desktop-widget","source":"W.qml"}]})");
+    writeFile(path, first);
+    writeFile(configPath(), R"({"enabled":["author/samestat"]})");
+
+    Plugins plugins;
+    plugins.componentComplete();
+
+    PluginManifest* manifest = nullptr;
+    for (const auto& entry : plugins.plugins()) {
+        auto* const candidate = entry.value<PluginManifest*>();
+        if (candidate && candidate->id() == id)
+            manifest = candidate;
+    }
+
+    QVERIFY(manifest);
+    const int before = manifest->generation();
+    QVERIFY(before > 0);
+
+    WatcherPass pass(plugins);
+
+    // Same length, and the mtime is put back to what it was, so the stamp matches on both fields
+    // while the content differs. Only the watcher knows the file changed.
+    QFileInfo info(path);
+    const auto mtime = info.lastModified();
+    writeFile(path, second);
+
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadWrite));
+    QVERIFY(file.setFileTime(mtime, QFileDevice::FileModificationTime));
+    file.close();
+
+    QTRY_VERIFY_WITH_TIMEOUT(!pass.passes.isEmpty(), 5000);
+
+    const auto firstPass = pass.first();
+    QCOMPARE(firstPass.value(QStringLiteral("scanned")).toStringList(), QStringList{ id });
+    QCOMPARE(firstPass.value(QStringLiteral("filesRead")).toInt(), 1);
+    QVERIFY(manifest->generation() > before);
+}
+
+void TestPlugins::fiveEntryPointsReloadWithinAFrame() {
+    // Synthetic fixture for the "a reload must not drop a frame" rule: five entry points, each
+    // with its own source, and repeated reloads. What blocks the GUI thread is the synchronous
+    // part of the pass (discovery, the plugin's scan, re-registering its types) - compiling the
+    // entry points themselves is asynchronous and does not show up here.
+    const auto id = QStringLiteral("author/five");
+    const auto dir = dataDir() + QStringLiteral("/five");
+    QDir().mkpath(dir);
+
+    QStringList entryPoints;
+    for (int i = 0; i < 5; ++i) {
+        entryPoints.append(
+            QStringLiteral(R"({"type":"bar-entry","source":"E%1.qml","properties":{"name":"e%1"}})").arg(i));
+        writeFile(dir + QStringLiteral("/E%1.qml").arg(i), "import QtQuick\n\nItem {}\n");
+    }
+
+    writeFile(dir + QStringLiteral("/manifest.json"),
+        QStringLiteral(R"({"name":"five","author":"author","entryPoints":[%1]})").arg(entryPoints.join(u',')).toUtf8());
+    writeFile(configPath(), R"({"enabled":["author/five"]})");
+
+    Plugins plugins;
+    plugins.componentComplete();
+
+    PluginManifest* manifest = nullptr;
+    for (const auto& entry : plugins.plugins()) {
+        auto* const candidate = entry.value<PluginManifest*>();
+        if (candidate && candidate->id() == id)
+            manifest = candidate;
+    }
+
+    QVERIFY(manifest);
+    QCOMPARE(plugins.__entryPoints(EntryPointType::BarEntry).size(), 5);
+
+    const int before = manifest->generation();
+    int worst = 0;
+
+    for (int i = 0; i < 10; ++i) {
+        writeFile(dir + QStringLiteral("/E1.qml"),
+            QStringLiteral("import QtQuick\n\nItem {\n    property int round: %1\n}\n").arg(i).toUtf8());
+
+        // reloadPlugin is the explicit path: it must not trust a stamp, so all five are read.
+        // The stamp fast path is what rescanOnlyTouchesTheEditedPlugin covers.
+        plugins.reloadPlugin(id);
+
+        const auto stats = plugins.scanStats();
+        QCOMPARE(stats.value(QStringLiteral("trigger")).toString(), QStringLiteral("reload-plugin"));
+        QCOMPARE(stats.value(QStringLiteral("partial")).toBool(), true);
+        QCOMPARE(stats.value(QStringLiteral("modulesScanned")).toInt(), 1);
+        QCOMPARE(stats.value(QStringLiteral("scanned")).toStringList(), QStringList{ id });
+        QCOMPARE(stats.value(QStringLiteral("filesRead")).toInt(), 5);
+
+        worst = qMax(worst, stats.value(QStringLiteral("durationMs")).toInt());
+    }
+
+    // 16 ms is one frame at 60 Hz; a five file scan against a temp dir is a fraction of that
+    QVERIFY2(worst < 16, qPrintable(QStringLiteral("worst reload took %1 ms").arg(worst)));
+    QCOMPARE(manifest->generation(), before + 10);
+}
+
+void TestPlugins::removingATypeIsReportedAsUnfixable() {
+    const auto id = QStringLiteral("author/leak");
+    const auto dir = dataDir() + QStringLiteral("/leak");
+    QDir().mkpath(dir);
+
+    writeFile(dir + QStringLiteral("/manifest.json"),
+        R"({"name":"leak","author":"author","entryPoints":[{"type":"desktop-widget","source":"A.qml"}]})");
+    writeFile(dir + QStringLiteral("/A.qml"), "import QtQuick\n\nItem {}\n");
+    writeFile(dir + QStringLiteral("/B.qml"), "import QtQuick\n\nItem {}\n");
+    writeFile(configPath(), R"({"enabled":["author/leak"]})");
+
+    Plugins plugins;
+    plugins.componentComplete();
+
+    PluginManifest* manifest = nullptr;
+    for (const auto& entry : plugins.plugins()) {
+        auto* const candidate = entry.value<PluginManifest*>();
+        if (candidate && candidate->id() == id)
+            manifest = candidate;
+    }
+
+    QVERIFY(manifest);
+    QVERIFY(manifest->warnings().isEmpty());
+
+    // Qt keeps the registration, so the type stays resolvable against a file that is gone. The
+    // plugin has to say so instead of silently leaving broken imports behind.
+    QVERIFY(QFile::remove(dir + QStringLiteral("/B.qml")));
+    plugins.reloadPlugin(id);
+
+    const auto warnings = manifest->warnings().join(u' ');
+    QVERIFY2(warnings.contains(QStringLiteral("Registered QML types are gone: B")), qPrintable(warnings));
+    QVERIFY(warnings.contains(QStringLiteral("restart")));
 }
 
 void TestPlugins::entryPointErrorsAreTracked() {
