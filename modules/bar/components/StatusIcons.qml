@@ -193,8 +193,12 @@ StyledRect {
         // A plugin status icon is wrapped in an EntryPointLoader; look through it so an icon that
         // hides itself (feature switched off, no device) also drops its layout spacing.
         readonly property var content: item && item.item !== undefined ? item.item : item
+        // Item.visible reads the effective visibility, so the wrapper must not use its own
+        // content's visibility to decide whether it is visible: while the bar is hidden (the
+        // show/hide animation, fullscreen) the content is effectively invisible, and the binding
+        // would write false into the wrapper, which keeps the content invisible for good. Size
+        // the wrapper from `present` instead and let the content hide itself.
         readonly property bool present: (content?.present ?? content?.visible ?? true) && !root.collapsed(modelData)
-        visible: content?.present ?? content?.visible ?? true
         property real topGap: present && index !== root.firstPresent ? margin : 0
         property real bottomGap: present && index !== root.lastPresent ? margin : 0
         property real leftGap: present && index !== root.firstPresent ? margin : 0
@@ -208,8 +212,8 @@ StyledRect {
         Layout.rightMargin: root.isHorizontal ? Math.round(rightGap) : 0
         Layout.alignment: root.isHorizontal ? Qt.AlignVCenter : Qt.AlignHCenter
 
-        implicitWidth: item?.implicitWidth ?? 0
-        implicitHeight: item?.implicitHeight ?? 0
+        implicitWidth: present ? (item?.implicitWidth ?? 0) : 0
+        implicitHeight: present ? (item?.implicitHeight ?? 0) : 0
 
         children: item
 
