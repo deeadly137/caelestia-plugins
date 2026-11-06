@@ -16,7 +16,7 @@ PageBase {
     id: root
 
     function openPlugin(plugin): void {
-        nState.selectedPluginId = plugin.id;
+        nState.selectedPluginDir = plugin.dir;
         nState.openSubPage(1);
     }
 
@@ -35,18 +35,22 @@ PageBase {
     function installedCard(plugin) {
         const banner = plugin.bannerSource ?? "";
         const logo = plugin.logoSource ?? "";
+        const name = plugin.displayName || plugin.name || plugin.dir.slice(plugin.dir.lastIndexOf("/") + 1);
 
         return {
+            dir: plugin.dir,
             id: plugin.id,
-            name: plugin.displayName ?? plugin.name ?? plugin.id,
-            author: plugin.author ?? qsTr("Unknown"),
+            name: name,
+            author: plugin.author || qsTr("Unknown"),
             description: plugin.description ?? "",
-            icon: plugin.icon ?? "extension",
+            icon: plugin.icon || "extension",
             version: plugin.version ?? "",
             tags: Array.from(plugin.tags ?? []),
             banner: banner,
             logo: logo,
             image: banner,
+            valid: plugin.valid,
+            error: plugin.error ?? "",
             installed: true
         };
     }
@@ -352,6 +356,38 @@ PageBase {
                     fontStyle: Tokens.font.icon.medium
                 }
             }
+
+            // Invalid manifests and contested ids are still listed, so the shell does not silently
+            // drop a plugin the user installed; say why it will not load.
+            StyledRect {
+                visible: !(plugin.modelData.valid ?? true)
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Tokens.padding.large
+                implicitWidth: invalidRow.implicitWidth + Tokens.padding.medium * 2
+                implicitHeight: invalidRow.implicitHeight + Tokens.padding.extraSmall * 2
+                radius: Tokens.rounding.full
+                color: Colours.palette.m3errorContainer
+
+                RowLayout {
+                    id: invalidRow
+
+                    anchors.centerIn: parent
+                    spacing: Tokens.spacing.extraSmall
+
+                    MaterialIcon {
+                        text: "error"
+                        color: Colours.palette.m3onErrorContainer
+                        fontStyle: Tokens.font.icon.small
+                    }
+
+                    StyledText {
+                        text: qsTr("Invalid")
+                        color: Colours.palette.m3onErrorContainer
+                        font: Tokens.font.label.small
+                    }
+                }
+            }
         }
 
         ColumnLayout {
@@ -380,6 +416,18 @@ PageBase {
                 color: Colours.palette.m3outline
                 font: Tokens.font.body.small
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                Layout.topMargin: Tokens.spacing.extraSmall
+                visible: !(plugin.modelData.valid ?? true)
+                text: plugin.modelData.error || qsTr("Invalid manifest")
+                color: Colours.palette.m3error
+                font: Tokens.font.body.small
+                wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                maximumLineCount: 3
+                elide: Text.ElideRight
             }
 
             StyledText {

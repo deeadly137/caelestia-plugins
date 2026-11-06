@@ -16,15 +16,25 @@ PageBase {
 
     readonly property var plugin: {
         const list = Array.from(Plugins.plugins);
-        return list.find(p => p.id === nState.selectedPluginId) ?? null;
+        return list.find(p => p.dir === nState.selectedPluginDir) ?? null;
     }
     readonly property var settings: plugin?.settings
     readonly property bool managed: plugin != null && Plugins.isManaged(plugin.id)
 
     property var rows: []
 
-    // Entry point load failures and settings validation problems share one list.
-    readonly property var problems: [...(plugin?.entryPointErrors ?? []), ...(settings?.warnings ?? [])]
+    // The manifest error (parse/duplicate id) comes first: it is why the plugin is not running.
+    // Entry point load failures and settings validation problems share the same list after it.
+    readonly property var problems: {
+        const list = [];
+        if (root.plugin?.error)
+            list.push(root.plugin.error);
+        for (const problem of root.plugin?.entryPointErrors ?? [])
+            list.push(problem);
+        for (const problem of root.settings?.warnings ?? [])
+            list.push(problem);
+        return list;
+    }
     readonly property bool anyModified: rows.some(row => !row.header && row.modified)
 
     property Connections settingsConnections: Connections {
@@ -116,7 +126,7 @@ PageBase {
     onSettingsChanged: reload()
     Component.onCompleted: reload()
 
-    title: plugin ? (plugin.displayName || plugin.name) : Tr.tr("Plugin")
+    title: plugin ? (plugin.displayName || plugin.name || plugin.dir.slice(plugin.dir.lastIndexOf("/") + 1)) : Tr.tr("Plugin")
     isSubPage: true
 
     ColumnLayout {
@@ -151,7 +161,7 @@ PageBase {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: root.plugin?.displayName || root.plugin?.name || ""
+                    text: root.plugin?.displayName || root.plugin?.name || root.plugin?.dir.slice(root.plugin?.dir.lastIndexOf("/") + 1) || ""
                     font: Tokens.font.title.medium
                     wrapMode: Text.WordWrap
                 }
@@ -189,8 +199,15 @@ PageBase {
             first: true
             last: true
             text: Tr.tr("Enabled")
-            subtext: root.plugin?.enabled ? Tr.tr("Loaded into the shell") : Tr.tr("Not loaded")
+            subtext: {
+                if (!root.plugin)
+                    return "";
+                if (!root.plugin.valid)
+                    return Tr.tr("Cannot load until the manifest is fixed");
+                return root.plugin.enabled ? Tr.tr("Loaded into the shell") : Tr.tr("Not loaded");
+            }
             checked: root.plugin?.enabled ?? false
+            disabled: !(root.plugin?.valid ?? false)
             onToggled: {
                 if (root.plugin)
                     Plugins.setPluginEnabled(root.plugin.id, checked);
@@ -310,7 +327,7 @@ PageBase {
             rootParent: root
             icon: "delete_forever"
             label: Tr.tr("Remove plugin")
-            header: Tr.tr("Remove %1?").arg(root.plugin?.displayName || root.plugin?.name || "")
+            header: Tr.tr("Remove %1?").arg(root.plugin?.displayName || root.plugin?.name || root.plugin?.dir.slice(root.plugin?.dir.lastIndexOf("/") + 1) || "")
             acceptLabel: Tr.tr("Remove")
             separateContent: true
 
