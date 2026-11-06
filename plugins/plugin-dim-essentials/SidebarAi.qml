@@ -29,6 +29,12 @@ Item {
     property string currentChatId: ""
     property var currentRequest: null
     property bool isStreaming: false
+
+    // Sidebar host contract: hide the tab when no provider is configured, let the plugin setting
+    // choose the opening tab, and keep the sidebar loaded while an answer streams.
+    readonly property bool available: root.settings.aiEnableOllama === true || root.settings.aiEnableOpenRouter === true || root.settings.aiEnableOpenClaw === true
+    readonly property bool preferred: root.settings.initialSidebarTab === "ai"
+    property bool keepAlive: root.isStreaming
     
 
     Timer {

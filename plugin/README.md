@@ -60,6 +60,7 @@ supported: their bindings cannot be reloaded, so they are reported as a warning 
 | `status-icon`    | Icon in the bar's status area                                       |
 | `quick-toggle`   | Toggle in the utilities drawer                                      |
 | `dashboard-tab`  | Tab in the dashboard                                                |
+| `sidebar-page`   | Tab in the sidebar, `properties.name` identifies it                  |
 | `desktop-widget` | Window on the desktop, `properties.layer` is `bottom` or `top`      |
 | `page-extension` | Extra controls injected into an existing Nexus page                 |
 | `custom`         | Loaded and kept alive, never shown                                  |
@@ -69,6 +70,14 @@ also what the shell reads to decide where the entry point belongs (a bar entry's
 popout's `entry`, a page extension's `page`). A `custom` entry point is instantiated for as long
 as the plugin is enabled and is the place for timers, sockets and background work that needs no
 place in the UI.
+
+A `sidebar-page` is appended after the stock notifications tab. `properties.name` identifies it,
+`properties.title`/`icon` label it and `properties.order` sorts it among other plugin pages. The
+page item may declare `property bool available` (default `true`) to hide its tab while the feature
+is off, `property bool preferred` to ask for that tab when the sidebar opens, and
+`property bool keepAlive` to keep the sidebar loaded while it is hidden (for example while an
+answer is still streaming). The host assigns `props`, `screenState`, `popouts` and `utilities`
+after the item is loaded.
 
 Entry points may declare `required property SettingsObject settings`; the loader injects the
 plugin's settings object when the property exists. The object may also define

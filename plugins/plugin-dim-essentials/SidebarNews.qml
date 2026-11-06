@@ -4,12 +4,20 @@ import QtQuick.Controls
 import Quickshell
 import Caelestia
 import Caelestia.Config
+import Caelestia.Plugins
 import qs.components
 import qs.components.controls
 import qs.services
 
 Item {
     id: root
+
+    required property SettingsObject settings
+
+    // Sidebar host contract: hide the tab when the news feed is switched off and let the plugin
+    // setting choose the opening tab.
+    readonly property bool available: root.settings.showNews !== false
+    readonly property bool preferred: root.settings.initialSidebarTab === "news"
 
     property bool isFetching: false
     property string errorMessage: ""

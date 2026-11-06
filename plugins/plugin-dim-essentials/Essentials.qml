@@ -9,7 +9,6 @@
 //   wallpapers.paused           pause video walls while a fullscreen window is visible
 //   launcher.appVisible         hides apps hidden from this plugin's launcher buttons
 //   launcher.itemActions        the per-app hide/show button
-//   sidebar.content             the tabbed sidebar (notifications, AI, news)
 //   utilities.openWithSidebar   keep utilities closed while the sidebar is open
 //   drawers.wantsKeyboard       keyboard focus for the AI input and the dashboard terminal
 //
@@ -60,14 +59,6 @@ QtObject {
     // `entry` and `screenState`, and `settings` comes from the registration below.
     readonly property Component hideButton: Component {
         LauncherHideButton {}
-    }
-
-    // Replaces the stock notifications-only sidebar body. `settings` is bound here because the host
-    // only assigns `props`, `screenState`, `popouts` and `utilities` after loading it.
-    readonly property Component sidebarContent: Component {
-        SidebarContent {
-            settings: root.settings
-        }
     }
 
     function syncBarPosition(): void {
@@ -173,9 +164,8 @@ QtObject {
             settings: root.settings
         });
 
-        // Sidebar: tabbed notifications/AI/news body, utilities stays closed until asked for, and
-        // keyboard focus for the AI input and the dashboard terminal.
-        Hooks.inject("sidebar.content", root.owner, root.sidebarContent, {});
+        // Sidebar pages are entry points now: utilities stays closed until asked for, and keyboard
+        // focus is requested for the AI input and the dashboard terminal.
         Hooks.setValue("utilities.openWithSidebar", root.owner, false);
         Hooks.setFunction("drawers.wantsKeyboard", root.owner, state => {
             if (!state)

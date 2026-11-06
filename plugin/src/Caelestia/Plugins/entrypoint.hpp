@@ -23,6 +23,7 @@ public:
         StatusIcon,    // Status icon in the bar
         QuickToggle,   // Quick toggle in utilities drawer
         DashboardTab,  // New dashboard tab
+        SidebarPage,   // Tab in the sidebar
         DesktopWidget, // Widget on the desktop, above the wallpaper and below normal windows
         PageExtension, // Extra controls injected into an existing Nexus page
     };

@@ -2,7 +2,7 @@
     "name": "dimessentials",
     "displayName": "MiDnight Essentials",
     "author": "deeadly137",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "icon": "extension",
     "description": "MiDnight Essentials: dashboard terminal tab, wallpaper quick toggle, notification and peripheral battery icons, tabbed sidebar with AI and news, launcher hide buttons, wallpaper folder groups, fullscreen wallpaper pausing, and taskbar side selection.",
     "tags": [
@@ -56,6 +56,26 @@
             "properties": {
                 "name": "peripheralBattery",
                 "order": 65
+            }
+        },
+        {
+            "type": "sidebar-page",
+            "source": "SidebarAi.qml",
+            "properties": {
+                "name": "ai",
+                "title": "AI Assistant",
+                "icon": "smart_toy",
+                "order": 10
+            }
+        },
+        {
+            "type": "sidebar-page",
+            "source": "SidebarNews.qml",
+            "properties": {
+                "name": "news",
+                "title": "News",
+                "icon": "newspaper",
+                "order": 20
             }
         }
     ]

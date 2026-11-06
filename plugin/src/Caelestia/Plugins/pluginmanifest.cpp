@@ -213,7 +213,8 @@ void PluginManifest::parse() {
             for (const auto& entryPoint : std::as_const(entryPoints)) {
                 const auto type = entryPoint.type();
                 if (type != EntryPointType::BarEntry && type != EntryPointType::BarPopout &&
-                    type != EntryPointType::StatusIcon && type != EntryPointType::QuickToggle)
+                    type != EntryPointType::StatusIcon && type != EntryPointType::QuickToggle &&
+                    type != EntryPointType::SidebarPage)
                     continue;
 
                 const auto entryName = entryPoint.properties().value(QStringLiteral("name")).toString().trimmed();

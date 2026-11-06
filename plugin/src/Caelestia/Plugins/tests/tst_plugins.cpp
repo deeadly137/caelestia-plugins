@@ -112,6 +112,7 @@ private slots:
     void manifestRejectsAbsoluteEntryPoint();
     void manifestRejectsDuplicateEntryPointNames();
     void manifestRequiresNameForBarEntry();
+    void manifestAcceptsSidebarPage();
     void manifestChecksRequires();
     void manifestReadsApiVersion();
     void manifestRejectsNewerApi();
@@ -319,6 +320,20 @@ void TestPlugins::manifestRequiresNameForBarEntry() {
 
     QVERIFY(!manifest.valid());
     QVERIFY(manifest.error().contains(QStringLiteral("properties.name")));
+}
+
+void TestPlugins::manifestAcceptsSidebarPage() {
+    const auto dir = writePlugin(QStringLiteral("sidebar-page"),
+        R"({"name":"Pages","author":"a","entryPoints":[
+            {"type":"sidebar-page","source":"Page.qml","properties":{"name":"page","title":"Page"}}
+        ]})");
+    const PluginManifest manifest(dir, dir + QStringLiteral("/manifest.json"));
+
+    QVERIFY2(manifest.valid(), qUtf8Printable(manifest.error()));
+    QCOMPARE(manifest.entryPoints().size(), 1);
+    QCOMPARE(manifest.entryPoints().first().type(), EntryPointType::SidebarPage);
+    QCOMPARE(manifest.entryPoints().first().properties().value(QStringLiteral("name")).toString(),
+        QStringLiteral("page"));
 }
 
 void TestPlugins::manifestChecksRequires() {
