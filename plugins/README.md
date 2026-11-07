@@ -21,5 +21,3 @@ It basically selects a subdirectory (which would be a plugin), so that the insta
 `plugin-dim-essentials` → `deeadly137/dimessentials` → Features that everyone got used to in MiDnight Shell.
 
 `plugins/better-lyrics` ([LonelyOmen/caelestia-plugins](https://github.com/LonelyOmen/caelestia-plugins)) → `xlonely/betterlyrics` → Better Lyrics desktop lyrics
-
-`plugins/astra-strike` ([LonelyOmen/caelestia-plugins](https://github.com/LonelyOmen/caelestia-plugins)) → `xlonely/astra` → Astra Strike desktop game
