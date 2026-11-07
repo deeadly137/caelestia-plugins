@@ -35,6 +35,11 @@
             "id": "xlonely/betterlyrics",
             "repo": "https://github.com/LonelyOmen/caelestia-plugins.git",
             "path": "plugins/better-lyrics"
+        },
+        {
+            "id": "xlonely/astra",
+            "repo": "https://github.com/LonelyOmen/caelestia-plugins.git",
+            "path": "plugins/astra-strike"
         }
     ]
 }
