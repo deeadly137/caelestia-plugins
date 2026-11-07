@@ -332,6 +332,20 @@ void EntryPointLoader::clearFailure() const {
         m_plugin->clearEntryPointError(quintptr(this));
 }
 
+QStringList EntryPointLoader::injectProperties(QObject* object, const QVariantMap& properties) {
+    QStringList injected;
+    if (!object)
+        return injected;
+
+    for (auto it = properties.cbegin(); it != properties.cend(); ++it) {
+        if (!declaresProperty(object, it.key()))
+            continue;
+        if (object->setProperty(it.key().toUtf8().constData(), it.value()))
+            injected.append(it.key());
+    }
+    return injected;
+}
+
 bool EntryPointLoader::declaresProperty(const QObject* object, const QString& name) {
     if (!object)
         return false;

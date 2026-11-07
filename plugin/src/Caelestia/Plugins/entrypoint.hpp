@@ -25,6 +25,7 @@ public:
         DashboardTab,     // New dashboard tab
         SidebarPage,      // Tab in the sidebar
         LauncherProvider, // Search results in the launcher
+        UtilitiesCard,    // Card in the utilities drawer
         DesktopWidget,    // Widget on the desktop, above the wallpaper and below normal windows
         PageExtension,    // Extra controls injected into an existing Nexus page
     };

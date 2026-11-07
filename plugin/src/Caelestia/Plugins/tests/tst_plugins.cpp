@@ -48,11 +48,19 @@ private:
 class TestDeclaresProperties : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString name READ name CONSTANT)
+    Q_PROPERTY(QString value READ value WRITE setValue)
 
 public:
     using QObject::QObject;
 
     [[nodiscard]] QString name() const { return QStringLiteral("own"); }
+
+    [[nodiscard]] QString value() const { return m_value; }
+
+    void setValue(const QString& value) { m_value = value; }
+
+private:
+    QString m_value;
 };
 
 class TestSettings : public SettingsObject {
@@ -115,12 +123,14 @@ private slots:
     void manifestAcceptsSidebarPage();
     void manifestAcceptsLauncherProvider();
     void manifestRequiresNameForLauncherProvider();
+    void manifestAcceptsUtilitiesCard();
     void manifestChecksRequires();
     void manifestReadsApiVersion();
     void manifestRejectsNewerApi();
     void dataDirFollowsId();
     void entryPointErrorsAreTracked();
     void injectedPropertiesOnlyUseOwnProperties();
+    void injectPropertiesOnlyWritesDeclaredProperties();
 
     void settingsRoundTrip();
     void settingsChangedSignal();
@@ -361,6 +371,19 @@ void TestPlugins::manifestRequiresNameForLauncherProvider() {
 
     QVERIFY(!manifest.valid());
     QVERIFY(manifest.error().contains(QStringLiteral("properties.name")));
+}
+
+void TestPlugins::manifestAcceptsUtilitiesCard() {
+    const auto dir = writePlugin(QStringLiteral("utilities-card"),
+        R"({"name":"Cards","author":"a","entryPoints":[
+            {"type":"utilities-card","source":"Card.qml","properties":{"name":"clock","order":10}}
+        ]})");
+    const PluginManifest manifest(dir, dir + QStringLiteral("/manifest.json"));
+
+    QVERIFY2(manifest.valid(), qUtf8Printable(manifest.error()));
+    QCOMPARE(manifest.entryPoints().size(), 1);
+    QCOMPARE(manifest.entryPoints().first().type(), EntryPointType::UtilitiesCard);
+    QCOMPARE(manifest.entryPoints().first().properties().value(QStringLiteral("order")).toInt(), 10);
 }
 
 void TestPlugins::manifestChecksRequires() {
@@ -986,6 +1009,23 @@ void TestPlugins::injectedPropertiesOnlyUseOwnProperties() {
     // Not a property at all.
     QVERIFY(!EntryPointLoader::declaresProperty(&object, QStringLiteral("layer")));
     QVERIFY(!EntryPointLoader::declaresProperty(nullptr, QStringLiteral("name")));
+}
+
+void TestPlugins::injectPropertiesOnlyWritesDeclaredProperties() {
+    EntryPointLoader loader;
+    TestDeclaresProperties object;
+
+    const auto injected = loader.injectProperties(&object, {
+                                                               { QStringLiteral("value"), QStringLiteral("injected") },
+                                                               { QStringLiteral("name"), QStringLiteral("ignored") },
+                                                               { QStringLiteral("missing"), 1 },
+                                                           });
+
+    // `name` is declared but read-only, so it is skipped along with the unknown property. A host
+    // injection must never abort on a property the plugin item does not accept.
+    QCOMPARE(injected, (QStringList{ QStringLiteral("value") }));
+    QCOMPARE(object.value(), QStringLiteral("injected"));
+    QCOMPARE(object.name(), QStringLiteral("own"));
 }
 
 void TestPlugins::installRejectsIdMismatch() {

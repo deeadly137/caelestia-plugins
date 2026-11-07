@@ -59,6 +59,11 @@ public:
     // manifest `properties` cannot collide with QML base properties (Item.layer, Item.width, ...).
     [[nodiscard]] static bool declaresProperty(const QObject* object, const QString& name);
 
+    // Sets each property on `object` only when it declares it itself and the write succeeds, and
+    // returns the names actually set. Hosts use this to inject `props`, `screenState` and friends
+    // into plugin items without aborting the host's handler on an item that does not declare them.
+    Q_INVOKABLE QStringList injectProperties(QObject* object, const QVariantMap& properties);
+
 signals:
     void entryPointChanged();
     void sourceChanged();

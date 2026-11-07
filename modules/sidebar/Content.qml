@@ -85,6 +85,21 @@ Item {
         return false;
     }
 
+    // Injects the shell objects a page may want. Only declared properties are touched: assigning
+    // to one the page does not declare throws and would abort the rest of the handler, which also
+    // skipped the initial-tab selection.
+    function injectPage(loader, page): void {
+        if (!page)
+            return;
+
+        loader.injectProperties(page, {
+            props: root.props,
+            screenState: root.screenState,
+            popouts: root.popouts,
+            utilities: root.utilities
+        });
+    }
+
     function indexOfPage(id: string): int {
         for (let i = 0; i < root.tabs.length; i++)
             if (root.tabs[i].id === id)
@@ -167,10 +182,7 @@ Item {
                 return;
             for (const key in root.pluginContent.properties)
                 item[key] = root.pluginContent.properties[key];
-            item.props = root.props;
-            item.screenState = root.screenState;
-            item.popouts = root.popouts;
-            item.utilities = root.utilities;
+            root.injectPage(legacyLoader, item);
         }
     }
 
@@ -355,13 +367,11 @@ Item {
                                 root.pageRevision++;
                                 if (!item)
                                     return;
-                                item.props = root.props;
-                                item.screenState = root.screenState;
-                                item.popouts = root.popouts;
-                                item.utilities = root.utilities;
+                                root.injectPage(pageLoader, item);
                                 // The page's own `visible` must follow the tab, because pages such as
                                 // the AI assistant refresh on `onVisibleChanged`.
-                                item.visible = Qt.binding(() => root.activePage === pageLoader.pageId);
+                                if (item instanceof Item)
+                                    item.visible = Qt.binding(() => root.activePage === pageLoader.pageId);
                                 root.tryApplyInitialPage();
                             }
 

@@ -18,10 +18,12 @@ Item {
 
     readonly property var providers: {
         CUtils.dependency(Plugins.entryPointsRevision);
-        return Array.from(Plugins.entryPoints(EntryPointType.LauncherProvider)).slice().sort((a, b) => {
-            const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
-            return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
-        });
+        return Array.from(Plugins.entryPoints(EntryPointType.LauncherProvider))
+            .slice()
+            .sort((a, b) => {
+                const byOrder = (a.properties.order ?? 100) - (b.properties.order ?? 100);
+                return byOrder !== 0 ? byOrder : (a.properties.name ?? "").localeCompare(b.properties.name ?? "");
+            });
     }
 
     function query(text: string): var {

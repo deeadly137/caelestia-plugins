@@ -62,6 +62,7 @@ supported: their bindings cannot be reloaded, so they are reported as a warning 
 | `dashboard-tab`  | Tab in the dashboard                                                |
 | `sidebar-page`   | Tab in the sidebar, `properties.name` identifies it                  |
 | `launcher-provider` | Search results in the launcher, `properties.name` identifies it   |
+| `utilities-card` | Card in the utilities drawer, `properties.name` identifies it        |
 | `desktop-widget` | Window on the desktop, `properties.layer` is `bottom` or `top`      |
 | `page-extension` | Extra controls injected into an existing Nexus page                 |
 | `custom`         | Loaded and kept alive, never shown                                  |
@@ -78,7 +79,7 @@ page item may declare `property bool available` (default `true`) to hide its tab
 is off, `property bool preferred` to ask for that tab when the sidebar opens, and
 `property bool keepAlive` to keep the sidebar loaded while it is hidden (for example while an
 answer is still streaming). The host assigns `props`, `screenState`, `popouts` and `utilities`
-after the item is loaded.
+after the item is loaded, but only to pages that declare them, so declare the ones you use.
 
 A `launcher-provider` is loaded with the launcher and must define
 `function query(text: string): var` returning an array of result objects. A result needs a `name`
@@ -88,6 +89,11 @@ restricts the provider to queries starting with that prefix; a matched trigger s
 of the query and shows the results before the stock apps, so Enter runs the provider. Results from
 a provider without a trigger are appended after the apps. `limit` caps the results per query
 (default 5). The provider is a plain object, not an item, and `properties.name` identifies it.
+
+A `utilities-card` is appended to the utilities drawer below the stock cards, sorted by
+`properties.order` and name. The item gets `props`, `screenState` and `popouts` injected when it
+declares them. Set its own `visible` to `false` when it has nothing to show; an invisible card is
+left out of the column. `properties.name` identifies it.
 
 Entry points may declare `required property SettingsObject settings`; the loader injects the
 plugin's settings object when the property exists. The object may also define
