@@ -113,6 +113,8 @@ private slots:
     void manifestRejectsDuplicateEntryPointNames();
     void manifestRequiresNameForBarEntry();
     void manifestAcceptsSidebarPage();
+    void manifestAcceptsLauncherProvider();
+    void manifestRequiresNameForLauncherProvider();
     void manifestChecksRequires();
     void manifestReadsApiVersion();
     void manifestRejectsNewerApi();
@@ -332,8 +334,33 @@ void TestPlugins::manifestAcceptsSidebarPage() {
     QVERIFY2(manifest.valid(), qUtf8Printable(manifest.error()));
     QCOMPARE(manifest.entryPoints().size(), 1);
     QCOMPARE(manifest.entryPoints().first().type(), EntryPointType::SidebarPage);
-    QCOMPARE(manifest.entryPoints().first().properties().value(QStringLiteral("name")).toString(),
-        QStringLiteral("page"));
+    QCOMPARE(
+        manifest.entryPoints().first().properties().value(QStringLiteral("name")).toString(), QStringLiteral("page"));
+}
+
+void TestPlugins::manifestAcceptsLauncherProvider() {
+    const auto dir = writePlugin(QStringLiteral("launcher-provider"),
+        R"({"name":"Search","author":"a","entryPoints":[
+            {"type":"launcher-provider","source":"Provider.qml","properties":{"name":"search","trigger":"? "}}
+        ]})");
+    const PluginManifest manifest(dir, dir + QStringLiteral("/manifest.json"));
+
+    QVERIFY2(manifest.valid(), qUtf8Printable(manifest.error()));
+    QCOMPARE(manifest.entryPoints().size(), 1);
+    QCOMPARE(manifest.entryPoints().first().type(), EntryPointType::LauncherProvider);
+    QCOMPARE(
+        manifest.entryPoints().first().properties().value(QStringLiteral("trigger")).toString(), QStringLiteral("? "));
+}
+
+void TestPlugins::manifestRequiresNameForLauncherProvider() {
+    const auto dir = writePlugin(QStringLiteral("launcher-provider-noname"),
+        R"({"name":"Search","author":"a","entryPoints":[
+            {"type":"launcher-provider","source":"Provider.qml"}
+        ]})");
+    const PluginManifest manifest(dir, dir + QStringLiteral("/manifest.json"));
+
+    QVERIFY(!manifest.valid());
+    QVERIFY(manifest.error().contains(QStringLiteral("properties.name")));
 }
 
 void TestPlugins::manifestChecksRequires() {

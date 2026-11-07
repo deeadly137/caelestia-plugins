@@ -17,15 +17,16 @@ class EntryPointType : public QObject {
 
 public:
     enum Type {
-        Custom,        // Custom unparented component
-        BarEntry,      // Entry in the bar
-        BarPopout,     // Popout attached to a bar entry
-        StatusIcon,    // Status icon in the bar
-        QuickToggle,   // Quick toggle in utilities drawer
-        DashboardTab,  // New dashboard tab
-        SidebarPage,   // Tab in the sidebar
-        DesktopWidget, // Widget on the desktop, above the wallpaper and below normal windows
-        PageExtension, // Extra controls injected into an existing Nexus page
+        Custom,           // Custom unparented component
+        BarEntry,         // Entry in the bar
+        BarPopout,        // Popout attached to a bar entry
+        StatusIcon,       // Status icon in the bar
+        QuickToggle,      // Quick toggle in utilities drawer
+        DashboardTab,     // New dashboard tab
+        SidebarPage,      // Tab in the sidebar
+        LauncherProvider, // Search results in the launcher
+        DesktopWidget,    // Widget on the desktop, above the wallpaper and below normal windows
+        PageExtension,    // Extra controls injected into an existing Nexus page
     };
     Q_ENUM(Type)
 

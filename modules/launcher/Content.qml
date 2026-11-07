@@ -74,6 +74,8 @@ Item {
                         currentItem.onClicked();
                     else
                         currentItem.modelData.onClicked(list.currentList);
+                } else if (currentItem.modelData?.pluginLauncher) {
+                    currentItem.activate();
                 } else {
                     Apps.launch(currentItem.modelData);
                     root.screenState.launcher = false;

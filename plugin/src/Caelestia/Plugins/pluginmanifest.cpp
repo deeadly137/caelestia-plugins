@@ -214,7 +214,7 @@ void PluginManifest::parse() {
                 const auto type = entryPoint.type();
                 if (type != EntryPointType::BarEntry && type != EntryPointType::BarPopout &&
                     type != EntryPointType::StatusIcon && type != EntryPointType::QuickToggle &&
-                    type != EntryPointType::SidebarPage)
+                    type != EntryPointType::SidebarPage && type != EntryPointType::LauncherProvider)
                     continue;
 
                 const auto entryName = entryPoint.properties().value(QStringLiteral("name")).toString().trimmed();

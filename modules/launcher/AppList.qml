@@ -50,7 +50,13 @@ StyledListView {
         case "variant":
             return M3Variants.query(text);
         default:
-            return Apps.search(text);
+            const plugin = providers.query(text);
+            const apps = Apps.search(text);
+            // A provider whose trigger matched owns the query, so Enter runs it instead of an app
+            // that merely fuzzy-matches the same text.
+            const triggered = plugin.filter(result => result.pluginTrigger);
+            const rest = plugin.filter(result => !result.pluginTrigger);
+            return [...triggered, ...apps, ...rest];
         }
     }
 
@@ -96,7 +102,7 @@ StyledListView {
             name: "apps"
 
             PropertyChanges {
-                root.delegate: appItem
+                root.delegate: launcherItem
             }
         },
         State {
@@ -247,10 +253,14 @@ StyledListView {
         }
     }
 
-    Component {
-        id: appItem
+    LauncherProviders {
+        id: providers
+    }
 
-        AppItem {
+    Component {
+        id: launcherItem
+
+        LauncherItem {
             screenState: root.screenState
         }
     }
