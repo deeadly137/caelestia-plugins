@@ -140,6 +140,54 @@ Singleton {
         return "";
     }
 
+    // Special workspaces are named `special:<name>` and are drawn as icons rather than shapes on
+    // the bar, so the workspace name picks the icon (MiDnight's behaviour).
+    function getSpecialWsIcon(name: string): string {
+        name = name.toLowerCase().slice("special:".length);
+
+        for (const iconConfig of GlobalConfig.bar.workspaces.specialWorkspaceIcons.values)
+            if (matchIconRule(name, iconConfig))
+                return iconConfig.icon;
+
+        switch (name) {
+        case "special":
+            return "star";
+        case "communication":
+            return "forum";
+        case "music":
+            return "music_cast";
+        case "todo":
+            return "checklist";
+        case "sysmon":
+            return "monitor_heart";
+        default:
+            return name[0].toUpperCase();
+        }
+    }
+
+    function getSpecialWsMaterialIcon(name: string): string {
+        name = name.toLowerCase().slice("special:".length);
+
+        for (const iconConfig of GlobalConfig.bar.workspaces.specialWorkspaceIcons.values)
+            if (matchIconRule(name, iconConfig))
+                return iconConfig.icon;
+
+        switch (name) {
+        case "special":
+            return "star";
+        case "communication":
+            return "chat_bubble";
+        case "music":
+            return "music_note_2";
+        case "todo":
+            return "checklist";
+        case "sysmon":
+            return "list_alt";
+        default:
+            return name[0].toUpperCase();
+        }
+    }
+
     function getAppIcon(name: string, fallback: string): string {
         const icon = DesktopEntries.heuristicLookup(name)?.icon;
         if (fallback !== "undefined")
