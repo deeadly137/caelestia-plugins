@@ -379,6 +379,8 @@ Item {
                 id: pluginEntryWrapper
 
                 EntryPointLoader {
+                    id: pluginEntryLoader
+
                     entryPoint: {
                         const id = pluginEntryWrapper.modelData.id;
                         const entry = Plugins.entryPoints(EntryPointType.BarEntry).find(e => e.properties.name === id);
@@ -386,6 +388,16 @@ Item {
                             console.warn(logCat, "No plugin entry point found for", id);
                         return entry;
                     }
+
+                    // Bar items that need the surrounding context (a dock needs `bar` for its
+                    // orientation, size and popouts) declare it and get it here. Only declared
+                    // properties are written, so ordinary entries are unaffected.
+                    onItemChanged: pluginEntryLoader.injectProperties(item, {
+                        bar: root,
+                        screen: root.screen,
+                        screenState: root.screenState,
+                        popouts: root.popouts
+                    })
                 }
             }
         }

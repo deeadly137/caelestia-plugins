@@ -61,6 +61,11 @@ StyledWindow {
         return Math.max(...thresholds);
     }
 
+    // A blocking plugin overlay (the welcome/tour spotlight) needs the whole window to accept
+    // input, not just the bar and panel regions. It registers `drawers.overlayInput` while it is
+    // up; without that the clicks outside the panels fall through to the windows underneath.
+    readonly property bool overlayInput: Hooks.value("drawers.overlayInput", false) === true
+
     onHasFullscreenChanged: {
         screenState.launcher = false;
         screenState.session = false;
@@ -76,7 +81,7 @@ StyledWindow {
     readonly property bool pluginKeyboardFocus: Hooks.call("drawers.wantsKeyboard", [root.screenState]) === true
     WlrLayershell.keyboardFocus: screenState.launcher || screenState.session || root.pluginKeyboardFocus ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    mask: hasFullscreen ? emptyRegion : regions
+    mask: overlayInput ? fullRegion : hasFullscreen ? emptyRegion : regions
 
     anchors.top: true
     anchors.bottom: true
@@ -105,6 +110,15 @@ StyledWindow {
             width: panels.osdWrapper.width * (1 - panels.osd.offsetScale) + root.borderThickness
             height: panels.osd.height
         }
+    }
+
+    Region {
+        id: fullRegion
+
+        x: 0
+        y: 0
+        width: root.width
+        height: root.height
     }
 
     Regions {
@@ -428,6 +442,32 @@ StyledWindow {
             popouts: panels.popouts
 
             fullscreen: root.hasFullscreen
+        }
+    }
+
+    // Plugin overlay host. `Hooks.inject("drawers.overlay", …)` instantiates a component inside
+    // this drawer window, above the panels and the interaction layer, so a plugin can dim,
+    // highlight and block input in the same scene (the welcome/tour overlay). The component must
+    // declare `screen` and `screenState`; visibility and input masking are the plugin's decision.
+    // The overlay must also register `drawers.holdOpen` while it blocks input, otherwise the
+    // drawers close as soon as the pointer leaves them.
+    Repeater {
+        model: Hooks.slot("drawers.overlay")
+
+        delegate: Loader {
+            required property var modelData
+
+            anchors.fill: parent
+            z: 10000
+
+            sourceComponent: modelData.component
+
+            onLoaded: {
+                for (const key in modelData.properties)
+                    item[key] = modelData.properties[key];
+                item.screen = root.screen;
+                item.screenState = root.screenState;
+            }
         }
     }
 

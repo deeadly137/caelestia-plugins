@@ -27,6 +27,9 @@ CustomMouseArea {
     property bool sidebarShortcutActive
 
     readonly property bool isBarHorizontal: Hooks.barPosition(Config) === "top" || Hooks.barPosition(Config) === "bottom"
+    // A drawer overlay that blocks input (the welcome/tour spotlight) keeps the pointer from
+    // reaching this MouseArea, so the close-on-leave paths must be able to opt out.
+    readonly property bool holdOpen: Hooks.value("drawers.holdOpen", false) === true
 
     function inBarArea(x: real, y: real): bool {
         if (Hooks.barPosition(Config) === "left")
@@ -97,7 +100,7 @@ CustomMouseArea {
 
     onPressed: event => dragStart = Qt.point(event.x, event.y)
     onContainsMouseChanged: {
-        if (!containsMouse) {
+        if (!containsMouse && !root.holdOpen) {
             // Only hide if not activated by shortcut
             if (!osdShortcutActive) {
                 screenState.osd = false;

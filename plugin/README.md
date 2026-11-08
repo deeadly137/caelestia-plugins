@@ -95,6 +95,31 @@ A `utilities-card` is appended to the utilities drawer below the stock cards, so
 declares them. Set its own `visible` to `false` when it has nothing to show; an invisible card is
 left out of the column. `properties.name` identifies it.
 
+A `bar-entry` may declare `bar`, `screen`, `screenState` and `popouts`; the host injects them after
+loading. This is what a dock needs: `bar.isHorizontal`, `bar.width`/`bar.height` for its layout, and
+`bar.popouts` to open its hover/context popouts. A `bar-popout` may declare `popouts` and `screen`
+for the same reason. The popout names `dockhover` and `dockcontext` are reserved for dock use: a
+bar entry sets `popouts.dockModel` to the item it wants shown and then opens one of them, and the
+popout reads `popouts.dockModel`. Dock popouts do not push the notifications or sidebar panels
+aside, so a dock can overlay them.
+
+A plugin can draw over the whole drawer window (one per screen) without creating its own layer-shell
+window. From a `custom` entry point, inject a component into the `drawers.overlay` slot:
+
+```qml
+Hooks.inject("drawers.overlay", owner, overlayComponent, {}, 0)
+```
+
+The host instantiates the component inside the screen's drawer window, filling it at `z: 10000`, so
+it shares the scene with the bar and can dim or highlight anything in it. The component must declare
+`screen` and `screenState`; any other properties passed to `inject()` must be declared too. It owns
+its visibility and input handling: put a `MouseArea` in it if it should block clicks. While it
+blocks input, also keep the drawers open with `Hooks.setValue("drawers.holdOpen", owner, true)` and
+register `Hooks.setValue("drawers.overlayInput", owner, true)`, clearing both in `onUnload()`. The
+first stops the pointer leaving the panels from closing the dashboard, utilities and sidebar behind
+the overlay; the second makes the drawer window's input mask cover the whole screen, otherwise clicks
+outside the bar and panel regions fall through to the windows underneath.
+
 Entry points may declare `required property SettingsObject settings`; the loader injects the
 plugin's settings object when the property exists. The object may also define
 `function onUnload(): void {}`, which is called before it is destroyed on a reload, on disable and

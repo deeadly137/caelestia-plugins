@@ -24,10 +24,14 @@ Item {
     readonly property real nonAnimHeight: children.find(c => c.shouldBeActive)?.implicitHeight ?? content.implicitHeight
     readonly property Item current: (content.item as Content)?.current ?? null
     readonly property bool isDetached: detachedMode.length > 0
+    // Dock popouts are anchored to their dock entry and overlay the side panels, so they must not
+    // push notifications/sidebar away like an end-section bar popout does.
+    readonly property bool isDockPopout: currentName === "dockhover" || currentName === "dockcontext"
 
     property alias currentName: popoutState.currentName
     property alias hasCurrent: popoutState.hasCurrent
     property alias currentSection: popoutState.currentSection
+    property alias dockModel: popoutState.dockModel
     property real currentCenter
 
     property string detachedMode
@@ -113,6 +117,7 @@ Item {
 
         sourceComponent: Content {
             popouts: popoutState
+            screen: root.screen
         }
     }
 

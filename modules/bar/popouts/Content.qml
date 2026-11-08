@@ -13,6 +13,7 @@ Item {
     id: root
 
     required property PopoutState popouts
+    required property ShellScreen screen
     readonly property Popout currentPopout: content.children.find(c => c.shouldBeActive) ?? null
     readonly property Item current: currentPopout?.item ?? null
 
@@ -172,7 +173,17 @@ Item {
 
                 name: modelData.properties.entry
                 sourceComponent: EntryPointLoader {
+                    id: entryPointLoader
+
                     entryPoint: entryPointPopout.modelData
+
+                    // A plugin popout can declare `popouts` to close itself or switch to another
+                    // popout (a dock uses this for its hover/context pair). `screen` lets it open
+                    // windows or map coordinates.
+                    onItemChanged: entryPointLoader.injectProperties(item, {
+                        popouts: root.popouts,
+                        screen: root.screen
+                    })
                 }
             }
         }
