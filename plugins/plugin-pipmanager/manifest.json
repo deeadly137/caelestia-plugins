@@ -1,0 +1,29 @@
+{
+    "name": "pipmanager",
+    "displayName": "PiP Manager",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "icon": "picture_in_picture_alt",
+    "description": "Keeps Picture in Picture windows sized and parked in a screen quadrant, following the focused monitor, with a utilities card for pause and position.",
+    "tags": [
+        "midnight",
+        "pip",
+        "windows",
+        "utilities"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "custom",
+            "source": "PipManager.qml"
+        },
+        {
+            "type": "utilities-card",
+            "source": "PipCard.qml",
+            "properties": {
+                "name": "pipmanager",
+                "order": 20
+            }
+        }
+    ]
+}

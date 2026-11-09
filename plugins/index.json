@@ -35,6 +35,11 @@
             "id": "xlonely/betterlyrics",
             "repo": "https://github.com/LonelyOmen/caelestia-plugins.git",
             "path": "plugins/better-lyrics"
+        },
+        {
+            "id": "deeadly137/pipmanager",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-pipmanager"
         }
     ]
 }

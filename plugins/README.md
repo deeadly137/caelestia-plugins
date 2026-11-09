@@ -20,4 +20,6 @@ It basically selects a subdirectory (which would be a plugin), so that the insta
 
 `plugin-dim-essentials` → `deeadly137/dimessentials` → Features that everyone got used to in MiDnight Shell.
 
+`plugin-pipmanager` → `deeadly137/pipmanager` → Picture in Picture auto-align with a utilities card
+
 `plugins/better-lyrics` ([LonelyOmen/caelestia-plugins](https://github.com/LonelyOmen/caelestia-plugins)) → `xlonely/betterlyrics` → Better Lyrics desktop lyrics
