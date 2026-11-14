@@ -1,12 +1,12 @@
 pragma ComponentBehavior: Bound
 
-import "cards"
 import QtQuick
 import QtQuick.Layouts
 import Caelestia
 import Caelestia.Config
 import Caelestia.Plugins
 import qs.components
+import qs.modules.utilities.cards
 import qs.modules.bar.popouts as BarPopouts
 
 Item {
