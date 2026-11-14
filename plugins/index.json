@@ -50,6 +50,11 @@
             "id": "deeadly137/emoji",
             "repo": "https://github.com/deeadly137/caelestia-plugins.git",
             "path": "plugins/plugin-emoji"
+        },
+        {
+            "id": "deeadly137/keybinds",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-keybinds"
         }
     ]
 }

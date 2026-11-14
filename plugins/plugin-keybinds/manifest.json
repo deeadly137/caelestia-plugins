@@ -1,0 +1,28 @@
+{
+    "name": "keybinds",
+    "displayName": "Keybinds",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "icon": "keyboard",
+    "description": "Searchable Hyprland keybind list in the launcher, with friendly descriptions and run-on-enter.",
+    "tags": [
+        "launcher",
+        "hyprland",
+        "keybinds"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "custom",
+            "source": "KeybindStore.qml"
+        },
+        {
+            "type": "launcher-provider",
+            "source": "KeybindProvider.qml",
+            "properties": {
+                "name": "keybinds",
+                "order": 50
+            }
+        }
+    ]
+}
