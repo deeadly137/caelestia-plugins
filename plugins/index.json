@@ -45,6 +45,11 @@
             "id": "deeadly137/clipboard",
             "repo": "https://github.com/deeadly137/caelestia-plugins.git",
             "path": "plugins/plugin-clipboard"
+        },
+        {
+            "id": "deeadly137/emoji",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-emoji"
         }
     ]
 }

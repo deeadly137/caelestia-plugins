@@ -1,0 +1,36 @@
+{
+    "name": "emoji",
+    "displayName": "Emoji",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "icon": "emoji_emotions",
+    "description": "Emoji search in the launcher with usage-based ordering and a favourites list.",
+    "tags": [
+        "launcher",
+        "emoji"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "custom",
+            "source": "EmojiStore.qml"
+        },
+        {
+            "type": "launcher-provider",
+            "source": "EmojiProvider.qml",
+            "properties": {
+                "name": "emoji",
+                "order": 40
+            }
+        },
+        {
+            "type": "launcher-provider",
+            "source": "EmojiProvider.qml",
+            "properties": {
+                "name": "emoji-favourites",
+                "order": 41,
+                "mode": "favourite"
+            }
+        }
+    ]
+}

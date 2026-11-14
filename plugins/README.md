@@ -24,4 +24,6 @@ It basically selects a subdirectory (which would be a plugin), so that the insta
 
 `plugin-clipboard` → `deeadly137/clipboard` → Clipboard history and favourites in the launcher
 
+`plugin-emoji` → `deeadly137/emoji` → Emoji search with usage ordering and favourites in the launcher
+
 `plugins/better-lyrics` ([LonelyOmen/caelestia-plugins](https://github.com/LonelyOmen/caelestia-plugins)) → `xlonely/betterlyrics` → Better Lyrics desktop lyrics
