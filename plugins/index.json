@@ -55,6 +55,11 @@
             "id": "deeadly137/keybinds",
             "repo": "https://github.com/deeadly137/caelestia-plugins.git",
             "path": "plugins/plugin-keybinds"
+        },
+        {
+            "id": "deeadly137/windowswitcher",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-window-switcher"
         }
     ]
 }

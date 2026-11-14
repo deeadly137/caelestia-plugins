@@ -1,0 +1,28 @@
+{
+    "name": "windowswitcher",
+    "displayName": "Window Switcher",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "icon": "window",
+    "description": "Search open Hyprland windows in the launcher and focus one, optionally limited to the active workspace.",
+    "tags": [
+        "launcher",
+        "hyprland",
+        "windows"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "custom",
+            "source": "WindowStore.qml"
+        },
+        {
+            "type": "launcher-provider",
+            "source": "WindowProvider.qml",
+            "properties": {
+                "name": "windows",
+                "order": 60
+            }
+        }
+    ]
+}
