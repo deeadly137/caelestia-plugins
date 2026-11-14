@@ -1,0 +1,36 @@
+{
+    "name": "clipboard",
+    "displayName": "Clipboard",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "icon": "content_paste",
+    "description": "Clipboard history in the launcher, backed by cliphist, with a favourites list.",
+    "tags": [
+        "launcher",
+        "clipboard"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "custom",
+            "source": "ClipboardStore.qml"
+        },
+        {
+            "type": "launcher-provider",
+            "source": "ClipboardProvider.qml",
+            "properties": {
+                "name": "clipboard",
+                "order": 30
+            }
+        },
+        {
+            "type": "launcher-provider",
+            "source": "ClipboardProvider.qml",
+            "properties": {
+                "name": "clipboard-favourites",
+                "order": 31,
+                "mode": "favourite"
+            }
+        }
+    ]
+}

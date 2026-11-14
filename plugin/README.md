@@ -86,9 +86,10 @@ A `launcher-provider` is loaded with the launcher and must define
 and may carry `description`/`desc`, `icon`, an `activate(screenState)` function and `keepOpen`
 (default `false`, so the launcher closes after activation). An optional `trigger` property
 restricts the provider to queries starting with that prefix; a matched trigger sends the remainder
-of the query and shows the results before the stock apps, so Enter runs the provider. Results from
-a provider without a trigger are appended after the apps. `limit` caps the results per query
-(default 5). The provider is a plain object, not an item, and `properties.name` identifies it.
+of the query (which may be empty) and shows the results before the stock apps, so Enter runs the
+provider. Results from a provider without a trigger are appended after the apps. `limit` caps the
+results per query (default 5). The provider is a plain object, not an item, and `properties.name`
+identifies it.
 
 A `utilities-card` is appended to the utilities drawer below the stock cards, sorted by
 `properties.order` and name. The item gets `props`, `screenState` and `popouts` injected when it

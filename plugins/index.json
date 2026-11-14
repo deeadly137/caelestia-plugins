@@ -40,6 +40,11 @@
             "id": "deeadly137/pipmanager",
             "repo": "https://github.com/deeadly137/caelestia-plugins.git",
             "path": "plugins/plugin-pipmanager"
+        },
+        {
+            "id": "deeadly137/clipboard",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-clipboard"
         }
     ]
 }

@@ -7,7 +7,8 @@ import Caelestia.Plugins
 // Hosts `launcher-provider` entry points. A provider is a plain object with a
 // `function query(text: string): var` that returns an array of result objects. Results are shown
 // after the stock app results, unless the provider declared a `trigger` prefix that matched, in
-// which case they are shown first so Enter runs the provider.
+// which case they are shown first so Enter runs the provider. A matched trigger passes the rest of
+// the query, which may be empty so `clip ` can show a full history.
 //
 // The host lives with the launcher, so providers are only loaded while the launcher is open.
 Item {
@@ -46,8 +47,6 @@ Item {
                 if (!text.toLowerCase().startsWith(trigger.toLowerCase()))
                     continue;
                 queryText = text.slice(trigger.length).trim();
-                if (queryText.length === 0)
-                    continue;
             }
 
             let items;
@@ -74,6 +73,7 @@ Item {
         return results;
     }
 
+    objectName: "launcherProviders"
     visible: false
     width: 0
     height: 0

@@ -22,4 +22,6 @@ It basically selects a subdirectory (which would be a plugin), so that the insta
 
 `plugin-pipmanager` → `deeadly137/pipmanager` → Picture in Picture auto-align with a utilities card
 
+`plugin-clipboard` → `deeadly137/clipboard` → Clipboard history and favourites in the launcher
+
 `plugins/better-lyrics` ([LonelyOmen/caelestia-plugins](https://github.com/LonelyOmen/caelestia-plugins)) → `xlonely/betterlyrics` → Better Lyrics desktop lyrics
