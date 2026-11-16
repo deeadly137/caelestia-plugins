@@ -104,6 +104,11 @@ bar entry sets `popouts.dockModel` to the item it wants shown and then opens one
 popout reads `popouts.dockModel`. Dock popouts do not push the notifications or sidebar panels
 aside, so a dock can overlay them.
 
+A `bar-entry` can also define `handleHover(relPos, isHorizontal)`. When present, the bar calls it on
+pointer moves over the entry instead of toggling a same-named popout, so a multi-icon entry can map
+the position to its own items and drive `popouts` itself. `relPos` is measured along the bar's
+layout axis from the entry's leading edge.
+
 A plugin can draw over the whole drawer window (one per screen) without creating its own layer-shell
 window. From a `custom` entry point, inject a component into the `drawers.overlay` slot:
 

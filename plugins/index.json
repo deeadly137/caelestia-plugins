@@ -60,6 +60,11 @@
             "id": "deeadly137/windowswitcher",
             "repo": "https://github.com/deeadly137/caelestia-plugins.git",
             "path": "plugins/plugin-window-switcher"
+        },
+        {
+            "id": "deeadly137/dock",
+            "repo": "https://github.com/deeadly137/caelestia-plugins.git",
+            "path": "plugins/plugin-dock"
         }
     ]
 }

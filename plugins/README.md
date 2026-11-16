@@ -30,4 +30,6 @@ It basically selects a subdirectory (which would be a plugin), so that the insta
 
 `plugin-window-switcher` → `deeadly137/windowswitcher` → Search open Hyprland windows in the launcher
 
+`plugin-dock` → `deeadly137/dock` → Application dock for the bar with hover previews
+
 `plugins/better-lyrics` ([LonelyOmen/caelestia-plugins](https://github.com/LonelyOmen/caelestia-plugins)) → `xlonely/betterlyrics` → Better Lyrics desktop lyrics

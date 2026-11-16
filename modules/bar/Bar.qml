@@ -148,6 +148,17 @@ Item {
                 popouts.hasCurrent = false;
             }
         } else {
+            // A plugin bar entry can implement `handleHover(relPos, isHorizontal)` to map pointer
+            // moves over the whole entry to individual targets (a dock maps them to icons) and to
+            // own its popout state. Plugin entries are wrapped in an `EntryPointLoader`, so unwrap
+            // it before looking for the function.
+            const loader = ch.item as EntryPointLoader;
+            const hoverTarget = loader?.item ?? ch.item;
+            if (typeof hoverTarget?.handleHover === "function") {
+                hoverTarget.handleHover(pos - top, isHorizontal);
+                return;
+            }
+
             const pluginPopout = Plugins.entryPoints(EntryPointType.BarPopout).find(p => p.properties.entry === id);
             if (pluginPopout) {
                 const item = ch.item as Item;

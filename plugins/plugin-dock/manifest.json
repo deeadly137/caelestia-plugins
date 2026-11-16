@@ -1,0 +1,40 @@
+{
+    "name": "dock",
+    "displayName": "Dock",
+    "author": "deeadly137",
+    "version": "0.1.0",
+    "icon": "dock",
+    "description": "An application dock for the bar: pinned apps, running windows, live hover previews and a pin/open/end-task context menu.",
+    "tags": [
+        "bar",
+        "dock",
+        "launcher"
+    ],
+    "settings": "settings.qml",
+    "entryPoints": [
+        {
+            "type": "bar-entry",
+            "source": "Dock.qml",
+            "properties": {
+                "name": "dock",
+                "order": 50
+            }
+        },
+        {
+            "type": "bar-popout",
+            "source": "DockHover.qml",
+            "properties": {
+                "name": "dockhover-popout",
+                "entry": "dockhover"
+            }
+        },
+        {
+            "type": "bar-popout",
+            "source": "DockContext.qml",
+            "properties": {
+                "name": "dockcontext-popout",
+                "entry": "dockcontext"
+            }
+        }
+    ]
+}
